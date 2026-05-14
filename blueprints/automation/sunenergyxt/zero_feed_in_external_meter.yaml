@@ -1,0 +1,1195 @@
+blueprint:
+  name: SunEnergyXT 500 Series - External Meter Zero Feed-in
+  description: >
+    Zero feed-in controller for SunEnergyXT 500 / 500 Pro using an external Home
+    Assistant meter. It does not use MM or MD. Choose a preset for common HA /
+    HACS meter integrations such as Shelly, BitShake / Tasmota, and
+    EcoTracker, or use a custom signed-total, three-phase, import/export, or
+    three-phase import/export configuration. The automation then controls the
+    SunEnergyXT GS setpoint and IS output limit with the same topology logic
+    used by the simulator.
+  domain: automation
+  source_url: https://github.com/yanqr213/500-blueprint/blob/main/blueprints/automation/sunenergyxt/zero_feed_in_external_meter.yaml
+  input:
+    meter_power_source:
+      name: External meter preset
+      description: >
+        Choose the preset that matches the external meter entities available in
+        Home Assistant. Shelly 3EM / Pro 3EM can use either a total active power
+        entity or the sum of three phase active-power entities. BitShake /
+        Tasmota and EcoTracker usually use one current-power entity. Use the
+        custom modes if your integration exposes different entities.
+      default: shelly_total_power
+      selector:
+        select:
+          options:
+            - label: Shelly EM / Pro EM / Pro 3EM total power
+              value: shelly_total_power
+            - label: Shelly 3EM / Pro 3EM L1 + L2 + L3
+              value: shelly_three_phase_sum
+            - label: Shelly 3EM / Pro 3EM L1-L3 import/export
+              value: shelly_three_phase_import_export
+            - label: BitShake / Tasmota current power
+              value: bitshake_tasmota_power
+            - label: EcoTracker current power entity
+              value: ecotracker_power
+            - label: EcoTracker raw entity attribute
+              value: ecotracker_attribute_power
+            - label: Custom signed total power
+              value: custom_signed_total_power
+            - label: Custom L1 + L2 + L3 phase sum
+              value: custom_three_phase_sum
+            - label: Custom import/export power pair
+              value: import_export_pair
+            - label: Custom L1-L3 import/export pair
+              value: custom_three_phase_import_export
+
+    meter_power_sensor:
+      name: External meter total/current power entity
+      description: >
+        Use this for Shelly total power, BitShake / Tasmota current power,
+        EcoTracker current power, custom signed total power, or the EcoTracker
+        raw entity that contains a power attribute. The entity should represent
+        live power, not accumulated energy.
+      default: ""
+      selector:
+        entity:
+          domain: sensor
+
+    meter_power_attribute:
+      name: External meter power attribute
+      description: >
+        Only used by the EcoTracker raw entity attribute preset. The usual
+        attribute name is power.
+      default: power
+      selector:
+        text:
+
+    meter_l1_power_sensor:
+      name: External meter L1 power sensor
+      description: >
+        Use with the three-phase sum mode. Select the live phase-1 power entity,
+        usually W.
+      default: ""
+      selector:
+        entity:
+          domain: sensor
+
+    meter_l2_power_sensor:
+      name: External meter L2 power sensor
+      description: >
+        Use with the three-phase sum mode. Select the live phase-2 power entity,
+        usually W.
+      default: ""
+      selector:
+        entity:
+          domain: sensor
+
+    meter_l3_power_sensor:
+      name: External meter L3 power sensor
+      description: >
+        Use with the three-phase sum mode. Select the live phase-3 power entity,
+        usually W.
+      default: ""
+      selector:
+        entity:
+          domain: sensor
+
+    meter_import_power_sensor:
+      name: External meter import power sensor
+      description: >
+        Use with the custom import/export pair mode. Select the live grid-import
+        power entity as a positive value.
+      default: ""
+      selector:
+        entity:
+          domain: sensor
+
+    meter_export_power_sensor:
+      name: External meter export power sensor
+      description: >
+        Use with the custom import/export pair mode. Select the live grid-export
+        / feed-in power entity as a positive value.
+      default: ""
+      selector:
+        entity:
+          domain: sensor
+
+    meter_l1_import_power_sensor:
+      name: External meter L1 import power sensor
+      description: >
+        Use with the Shelly/custom three-phase import/export preset. Select the
+        phase-1 import / consumption power entity as a positive value.
+      default: ""
+      selector:
+        entity:
+          domain: sensor
+
+    meter_l2_import_power_sensor:
+      name: External meter L2 import power sensor
+      description: >
+        Use with the Shelly/custom three-phase import/export preset. Select the
+        phase-2 import / consumption power entity as a positive value.
+      default: ""
+      selector:
+        entity:
+          domain: sensor
+
+    meter_l3_import_power_sensor:
+      name: External meter L3 import power sensor
+      description: >
+        Use with the Shelly/custom three-phase import/export preset. Select the
+        phase-3 import / consumption power entity as a positive value.
+      default: ""
+      selector:
+        entity:
+          domain: sensor
+
+    meter_l1_export_power_sensor:
+      name: External meter L1 export power sensor
+      description: >
+        Use with the Shelly/custom three-phase import/export preset. Select the
+        phase-1 export / returned power entity as a positive value.
+      default: ""
+      selector:
+        entity:
+          domain: sensor
+
+    meter_l2_export_power_sensor:
+      name: External meter L2 export power sensor
+      description: >
+        Use with the Shelly/custom three-phase import/export preset. Select the
+        phase-2 export / returned power entity as a positive value.
+      default: ""
+      selector:
+        entity:
+          domain: sensor
+
+    meter_l3_export_power_sensor:
+      name: External meter L3 export power sensor
+      description: >
+        Use with the Shelly/custom three-phase import/export preset. Select the
+        phase-3 export / returned power entity as a positive value.
+      default: ""
+      selector:
+        entity:
+          domain: sensor
+
+    meter_sign_mode:
+      name: Meter sign convention
+      description: >
+        Choose how the signed total sensor or the three-phase sensors report
+        power. Auto uses the preset default: Shelly, BitShake / Tasmota, and
+        EcoTracker presets treat positive as grid import / consumption. Use an
+        explicit override if your CT direction, script, or template reports the
+        opposite sign. This is ignored by import/export modes because those
+        modes calculate export minus import directly.
+      default: auto_from_preset
+      selector:
+        select:
+          options:
+            - label: Auto from selected preset
+              value: auto_from_preset
+            - label: Export/feed-in is positive
+              value: export_positive
+            - label: Import/grid consumption is positive
+              value: import_positive
+
+    meter_power_multiplier:
+      name: External meter power multiplier
+      description: >
+        Multiplies the selected meter power value before control. Use 1 when the
+        entity is already W. Use 1000 when the entity is kW.
+      default: 1
+      selector:
+        number:
+          min: 0.001
+          max: 1000
+          step: 0.001
+          mode: box
+
+    gs_number:
+      name: SunEnergyXT GS number entity
+      description: >
+        Select "System Grid Port Power Setpoint". GS is the main closed-loop
+        control output. Positive GS increases export/output; negative GS
+        increases grid import/charging.
+      selector:
+        entity:
+          domain: number
+
+    is_number:
+      name: SunEnergyXT IS number entity
+      description: >
+        Select "System Max Inverter Power Setpoint". This is required because
+        the HTML simulator always calculates and writes IS when the target
+        changes outside pure PV bypass mode.
+      selector:
+        entity:
+          domain: number
+
+    load_power_sensor:
+      name: SunEnergyXT load power sensor
+      description: >
+        Select "System Load Port Power" from the SunEnergyXT device. This is
+        required to execute the same topology logic as the simulator. Positive
+        means the load port is consuming power. Negative means the load port has
+        AC backfeed, for example from a micro-inverter.
+      selector:
+        entity:
+          domain: sensor
+
+    grid_port_power_sensor:
+      name: SunEnergyXT grid-port power sensor
+      description: >
+        Required when you want the blueprint to execute the same topology logic
+        as the simulator. Select "System Grid Port Power". The blueprint uses
+        GP together with the external meter and LP to derive the same home-load
+        value used by the HTML simulator.
+      selector:
+        entity:
+          domain: sensor
+
+    pv_power_sensor:
+      name: SunEnergyXT PV power sensor
+      description: >
+        Select "PV Total Input Power" from the SunEnergyXT device. This is
+        required for the same full-battery PV-bypass decision used by the HTML
+        simulator.
+      selector:
+        entity:
+          domain: sensor
+
+    battery_power_sensor:
+      name: SunEnergyXT battery power sensor
+      description: >
+        Select "System Battery Power" (PB). Positive means battery charging and
+        negative means battery discharging. It is used to tolerate cases where
+        the device internal full/low-SOC state and the automation hold state are
+        temporarily different.
+      selector:
+        entity:
+          domain: sensor
+
+    target_grid_power_w:
+      name: Target grid power
+      description: >
+        Zero feed-in uses 0 W. Positive values intentionally keep a small export;
+        negative values intentionally keep a small import.
+      default: 0
+      selector:
+        number:
+          min: -200
+          max: 200
+          step: 1
+          unit_of_measurement: W
+          mode: box
+
+    gs_min_w:
+      name: GS lower limit
+      description: >
+        Minimum GS command. Negative values allow grid import / charging to
+        absorb surplus power.
+      default: -2400
+      selector:
+        number:
+          min: -2400
+          max: 0
+          step: 1
+          unit_of_measurement: W
+          mode: box
+
+    gs_max_w:
+      name: Maximum on-grid output power
+      description: >
+        Maximum allowed on-grid output power. It caps GS and is also used by the
+        full-battery PV-following mode. Use 800 for SunEnergyXT 500 and 2400
+        for SunEnergyXT 500 Pro unless a stricter local limit is required.
+      default: 2400
+      selector:
+        number:
+          min: 0
+          max: 2400
+          step: 1
+          unit_of_measurement: W
+          mode: box
+
+    gs_resolution_w:
+      name: GS write resolution
+      description: >
+        Minimum setpoint movement. Use 1 W for a true zero-deadband controller.
+        Use 10 W if your firmware or HA setup rounds GS to 10 W steps.
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 50
+          step: 1
+          unit_of_measurement: W
+          mode: box
+
+    gain_percent:
+      name: Correction gain
+      description: >
+        100% means the next GS target compensates the full measured error.
+        Lower values make the loop smoother.
+      default: 100
+      selector:
+        number:
+          min: 20
+          max: 150
+          step: 5
+          unit_of_measurement: "%"
+          mode: slider
+
+    small_error_w:
+      name: Small-error threshold
+      description: Error below this value is still corrected, but at the slow interval.
+      default: 30
+      selector:
+        number:
+          min: 1
+          max: 300
+          step: 1
+          unit_of_measurement: W
+          mode: box
+
+    large_error_w:
+      name: Large-error threshold
+      description: Error at or above this value is corrected at second-level speed.
+      default: 150
+      selector:
+        number:
+          min: 10
+          max: 1000
+          step: 10
+          unit_of_measurement: W
+          mode: box
+
+    slow_interval_s:
+      name: Slow write interval
+      description: Minimum time between writes when the error is small.
+      default: 15
+      selector:
+        number:
+          min: 3
+          max: 120
+          step: 1
+          unit_of_measurement: s
+          mode: box
+
+    medium_interval_s:
+      name: Medium write interval
+      description: Minimum time between writes when the error is medium.
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 60
+          step: 1
+          unit_of_measurement: s
+          mode: box
+
+    fast_interval_s:
+      name: Fast write interval
+      description: Minimum time between writes when the error is large.
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 20
+          step: 1
+          unit_of_measurement: s
+          mode: box
+
+    small_max_step_w:
+      name: Small-error max adjustment
+      description: Maximum GS movement per write when the error is small.
+      default: 20
+      selector:
+        number:
+          min: 1
+          max: 300
+          step: 1
+          unit_of_measurement: W
+          mode: box
+
+    medium_max_step_w:
+      name: Medium-error max adjustment
+      description: Maximum GS movement per write when the error is medium.
+      default: 100
+      selector:
+        number:
+          min: 10
+          max: 1000
+          step: 10
+          unit_of_measurement: W
+          mode: box
+
+    fast_max_step_w:
+      name: Large-error max adjustment
+      description: Maximum GS movement per write when the error is large.
+      default: 500
+      selector:
+        number:
+          min: 50
+          max: 2400
+          step: 10
+          unit_of_measurement: W
+          mode: box
+
+    max_meter_age_s:
+      name: Maximum meter age
+      description: >
+        Stop writing when the external meter or required SunEnergyXT real-time
+        power/SOC sensors are stale.
+      default: 8
+      selector:
+        number:
+          min: 2
+          max: 300
+          step: 1
+          unit_of_measurement: s
+          mode: box
+
+    soc_sensor:
+      name: SunEnergyXT SOC sensor
+      description: >
+        Select "System Battery Level". This is required to apply the same SOC
+        upper/lower limit, hysteresis, and full-battery PV-bypass branches as
+        the HTML simulator.
+      selector:
+        entity:
+          domain: sensor
+
+    min_discharge_soc:
+      name: SOC lower limit
+      description: >
+        At or below this SOC, positive GS output commands are blocked to avoid
+        further battery discharge.
+      default: 10
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+          mode: box
+
+    max_charge_soc:
+      name: SOC upper limit
+      description: >
+        At or above this SOC, negative GS charging commands are blocked to avoid
+        further battery charging.
+      default: 100
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+          mode: box
+
+    soc_hysteresis:
+      name: SOC hysteresis
+      description: >
+        SOC recovery band. Charging resumes only after SOC drops below
+        upper limit minus hysteresis. Discharging resumes only after SOC rises
+        above lower limit plus hysteresis.
+      default: 2
+      selector:
+        number:
+          min: 0
+          max: 20
+          step: 1
+          unit_of_measurement: "%"
+          mode: box
+
+    full_charge_hold_helper:
+      name: Full-charge hold helper
+      description: >
+        Select an input_boolean helper dedicated to this automation. It stores
+        the automation-side full-charge state. The device may enter or leave its
+        own full state at a slightly different time; the closed loop remains
+        driven by measured meter and port power.
+      selector:
+        entity:
+          domain: input_boolean
+
+    low_discharge_hold_helper:
+      name: Low-SOC hold helper
+      description: >
+        Select an input_boolean helper dedicated to this automation. It stores
+        the automation-side low-SOC state. The helper is released only after SOC
+        rises above the lower limit plus hysteresis.
+      selector:
+        entity:
+          domain: input_boolean
+
+    full_battery_mode:
+      name: Full-battery behavior
+      description: >
+        Follow load keeps zero-feed-in behavior after the battery is full:
+        battery charging is disabled and extra PV can be curtailed. Follow PV
+        disables battery charging and lets PV bypass output feed the AC side:
+        PV supplies the load port first, then the remaining PV can flow to the
+        grid port. GS is kept at 0 only when PV bypass / load-port backfeed can
+        cover the required grid-port output; otherwise GS and IS are pulled back
+        into a mixed compensation mode.
+      default: follow_load
+      selector:
+        select:
+          options:
+            - label: Follow load after full
+              value: follow_load
+            - label: Follow PV after full
+              value: follow_pv
+
+    ac_couple_max_charge_power_w:
+      name: AC-coupled maximum charge power
+      description: >
+        Maximum AC-side charging power allowed when surplus power must be
+        absorbed. This limits how negative GS is allowed to go.
+      default: 2400
+      selector:
+        number:
+          min: 0
+          max: 2400
+          step: 1
+          unit_of_measurement: W
+          mode: box
+
+    is_resolution_w:
+      name: IS write resolution
+      description: Minimum IS movement before writing a new value.
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 100
+          step: 1
+          unit_of_measurement: W
+          mode: box
+
+mode: single
+max_exceeded: silent
+
+trigger:
+  - platform: time_pattern
+    seconds: "/1"
+
+variables:
+  meter_power_source: !input meter_power_source
+  meter_entity: !input meter_power_sensor
+  meter_power_attribute: !input meter_power_attribute
+  meter_l1_entity: !input meter_l1_power_sensor
+  meter_l2_entity: !input meter_l2_power_sensor
+  meter_l3_entity: !input meter_l3_power_sensor
+  meter_import_entity: !input meter_import_power_sensor
+  meter_export_entity: !input meter_export_power_sensor
+  meter_l1_import_entity: !input meter_l1_import_power_sensor
+  meter_l2_import_entity: !input meter_l2_import_power_sensor
+  meter_l3_import_entity: !input meter_l3_import_power_sensor
+  meter_l1_export_entity: !input meter_l1_export_power_sensor
+  meter_l2_export_entity: !input meter_l2_export_power_sensor
+  meter_l3_export_entity: !input meter_l3_export_power_sensor
+  meter_sign_mode: !input meter_sign_mode
+  meter_power_multiplier: !input meter_power_multiplier
+  gs_entity: !input gs_number
+  is_entity: !input is_number
+  load_entity: !input load_power_sensor
+  gp_entity: !input grid_port_power_sensor
+  pv_entity: !input pv_power_sensor
+  battery_entity: !input battery_power_sensor
+  full_hold_entity: !input full_charge_hold_helper
+  low_hold_entity: !input low_discharge_hold_helper
+  full_battery_mode: !input full_battery_mode
+  target_grid_power_w: !input target_grid_power_w
+  gs_min_w: !input gs_min_w
+  gs_max_w: !input gs_max_w
+  gs_resolution_w: !input gs_resolution_w
+  gain_percent: !input gain_percent
+  small_error_w: !input small_error_w
+  large_error_w: !input large_error_w
+  slow_interval_s: !input slow_interval_s
+  medium_interval_s: !input medium_interval_s
+  fast_interval_s: !input fast_interval_s
+  small_max_step_w: !input small_max_step_w
+  medium_max_step_w: !input medium_max_step_w
+  fast_max_step_w: !input fast_max_step_w
+  max_meter_age_s: !input max_meter_age_s
+  soc_entity: !input soc_sensor
+  min_discharge_soc: !input min_discharge_soc
+  max_charge_soc: !input max_charge_soc
+  soc_hysteresis: !input soc_hysteresis
+  ac_couple_max_charge_power_w: !input ac_couple_max_charge_power_w
+  is_resolution_w: !input is_resolution_w
+
+condition:
+  - condition: template
+    value_template: >-
+      {% set source = meter_power_source %}
+      {% set bad = ['unknown', 'unavailable', 'none', ''] %}
+      {% set signed_sources = [
+        'shelly_total_power',
+        'bitshake_tasmota_power',
+        'ecotracker_power',
+        'custom_signed_total_power'
+      ] %}
+      {% set phase_sources = [
+        'shelly_three_phase_sum',
+        'custom_three_phase_sum'
+      ] %}
+      {% set phase_pair_sources = [
+        'shelly_three_phase_import_export',
+        'custom_three_phase_import_export'
+      ] %}
+      {% if source in signed_sources %}
+        {{ meter_entity | string | length > 0 and states(meter_entity) not in bad }}
+      {% elif source == 'ecotracker_attribute_power' %}
+        {{ meter_entity | string | length > 0
+           and states(meter_entity) not in bad
+           and state_attr(meter_entity, meter_power_attribute) is not none }}
+      {% elif source in phase_sources %}
+        {{ meter_l1_entity | string | length > 0 and states(meter_l1_entity) not in bad
+           and meter_l2_entity | string | length > 0 and states(meter_l2_entity) not in bad
+           and meter_l3_entity | string | length > 0 and states(meter_l3_entity) not in bad }}
+      {% elif source == 'import_export_pair' %}
+        {{ meter_import_entity | string | length > 0 and states(meter_import_entity) not in bad
+           and meter_export_entity | string | length > 0 and states(meter_export_entity) not in bad }}
+      {% elif source in phase_pair_sources %}
+        {{ meter_l1_import_entity | string | length > 0 and states(meter_l1_import_entity) not in bad
+           and meter_l2_import_entity | string | length > 0 and states(meter_l2_import_entity) not in bad
+           and meter_l3_import_entity | string | length > 0 and states(meter_l3_import_entity) not in bad
+           and meter_l1_export_entity | string | length > 0 and states(meter_l1_export_entity) not in bad
+           and meter_l2_export_entity | string | length > 0 and states(meter_l2_export_entity) not in bad
+           and meter_l3_export_entity | string | length > 0 and states(meter_l3_export_entity) not in bad }}
+      {% else %}
+        {{ false }}
+      {% endif %}
+  - condition: template
+    value_template: >-
+      {{ states(gs_entity) not in ['unknown', 'unavailable', 'none', ''] }}
+  - condition: template
+    value_template: >-
+      {{ states(is_entity) not in ['unknown', 'unavailable', 'none', ''] }}
+  - condition: template
+    value_template: >-
+      {{ states(load_entity) not in ['unknown', 'unavailable', 'none', ''] }}
+  - condition: template
+    value_template: >-
+      {{ states(gp_entity) not in ['unknown', 'unavailable', 'none', ''] }}
+  - condition: template
+    value_template: >-
+      {{ states(pv_entity) not in ['unknown', 'unavailable', 'none', ''] }}
+  - condition: template
+    value_template: >-
+      {{ states(battery_entity) not in ['unknown', 'unavailable', 'none', ''] }}
+  - condition: template
+    value_template: >-
+      {{ states(soc_entity) not in ['unknown', 'unavailable', 'none', ''] }}
+  - condition: template
+    value_template: >-
+      {% set source = meter_power_source %}
+      {% set limit = max_meter_age_s | float(30) %}
+      {% set signed_sources = [
+        'shelly_total_power',
+        'bitshake_tasmota_power',
+        'ecotracker_power',
+        'ecotracker_attribute_power',
+        'custom_signed_total_power'
+      ] %}
+      {% set phase_sources = [
+        'shelly_three_phase_sum',
+        'custom_three_phase_sum'
+      ] %}
+      {% set phase_pair_sources = [
+        'shelly_three_phase_import_export',
+        'custom_three_phase_import_export'
+      ] %}
+      {% if source in signed_sources %}
+        {{ meter_entity | string | length > 0
+           and (as_timestamp(now()) - as_timestamp(states[meter_entity].last_updated, 0)) <= limit }}
+      {% elif source in phase_sources %}
+        {{ meter_l1_entity | string | length > 0
+           and meter_l2_entity | string | length > 0
+           and meter_l3_entity | string | length > 0
+           and (as_timestamp(now()) - as_timestamp(states[meter_l1_entity].last_updated, 0)) <= limit
+           and (as_timestamp(now()) - as_timestamp(states[meter_l2_entity].last_updated, 0)) <= limit
+           and (as_timestamp(now()) - as_timestamp(states[meter_l3_entity].last_updated, 0)) <= limit }}
+      {% elif source == 'import_export_pair' %}
+        {{ meter_import_entity | string | length > 0
+           and meter_export_entity | string | length > 0
+           and (as_timestamp(now()) - as_timestamp(states[meter_import_entity].last_updated, 0)) <= limit
+           and (as_timestamp(now()) - as_timestamp(states[meter_export_entity].last_updated, 0)) <= limit }}
+      {% elif source in phase_pair_sources %}
+        {{ meter_l1_import_entity | string | length > 0
+           and meter_l2_import_entity | string | length > 0
+           and meter_l3_import_entity | string | length > 0
+           and meter_l1_export_entity | string | length > 0
+           and meter_l2_export_entity | string | length > 0
+           and meter_l3_export_entity | string | length > 0
+           and (as_timestamp(now()) - as_timestamp(states[meter_l1_import_entity].last_updated, 0)) <= limit
+           and (as_timestamp(now()) - as_timestamp(states[meter_l2_import_entity].last_updated, 0)) <= limit
+           and (as_timestamp(now()) - as_timestamp(states[meter_l3_import_entity].last_updated, 0)) <= limit
+           and (as_timestamp(now()) - as_timestamp(states[meter_l1_export_entity].last_updated, 0)) <= limit
+           and (as_timestamp(now()) - as_timestamp(states[meter_l2_export_entity].last_updated, 0)) <= limit
+           and (as_timestamp(now()) - as_timestamp(states[meter_l3_export_entity].last_updated, 0)) <= limit }}
+      {% else %}
+        {{ false }}
+      {% endif %}
+  - condition: template
+    value_template: >-
+      {% set age = as_timestamp(now()) - as_timestamp(states[load_entity].last_updated, 0) %}
+      {{ age <= (max_meter_age_s | float(30)) }}
+  - condition: template
+    value_template: >-
+      {% set age = as_timestamp(now()) - as_timestamp(states[gp_entity].last_updated, 0) %}
+      {{ age <= (max_meter_age_s | float(30)) }}
+  - condition: template
+    value_template: >-
+      {% set age = as_timestamp(now()) - as_timestamp(states[pv_entity].last_updated, 0) %}
+      {{ age <= (max_meter_age_s | float(30)) }}
+  - condition: template
+    value_template: >-
+      {% set age = as_timestamp(now()) - as_timestamp(states[battery_entity].last_updated, 0) %}
+      {{ age <= (max_meter_age_s | float(30)) }}
+  - condition: template
+    value_template: >-
+      {% set age = as_timestamp(now()) - as_timestamp(states[soc_entity].last_updated, 0) %}
+      {{ age <= (max_meter_age_s | float(30)) }}
+
+action:
+  - variables:
+      meter_signed_total_sources:
+        - shelly_total_power
+        - bitshake_tasmota_power
+        - ecotracker_power
+        - custom_signed_total_power
+      meter_phase_sum_sources:
+        - shelly_three_phase_sum
+        - custom_three_phase_sum
+      meter_phase_pair_sources:
+        - shelly_three_phase_import_export
+        - custom_three_phase_import_export
+      meter_import_positive_presets:
+        - shelly_total_power
+        - shelly_three_phase_sum
+        - bitshake_tasmota_power
+        - ecotracker_power
+        - ecotracker_attribute_power
+      meter_raw_power_before_multiplier_w: >-
+        {% set source = meter_power_source %}
+        {% if source in meter_signed_total_sources %}
+          {{ states(meter_entity) | float(0) }}
+        {% elif source == 'ecotracker_attribute_power' %}
+          {{ state_attr(meter_entity, meter_power_attribute) | float(0) }}
+        {% elif source in meter_phase_sum_sources %}
+          {{ (states(meter_l1_entity) | float(0))
+             + (states(meter_l2_entity) | float(0))
+             + (states(meter_l3_entity) | float(0)) }}
+        {% elif source == 'import_export_pair' %}
+          {{ (states(meter_export_entity) | float(0))
+             - (states(meter_import_entity) | float(0)) }}
+        {% elif source in meter_phase_pair_sources %}
+          {{ (states(meter_l1_export_entity) | float(0))
+             + (states(meter_l2_export_entity) | float(0))
+             + (states(meter_l3_export_entity) | float(0))
+             - (states(meter_l1_import_entity) | float(0))
+             - (states(meter_l2_import_entity) | float(0))
+             - (states(meter_l3_import_entity) | float(0)) }}
+        {% else %}
+          {{ 0 }}
+        {% endif %}
+      meter_raw_w: >-
+        {{ (meter_raw_power_before_multiplier_w | float(0))
+           * (meter_power_multiplier | float(1)) }}
+      effective_meter_sign_mode: >-
+        {% if meter_power_source == 'import_export_pair' or meter_power_source in meter_phase_pair_sources %}
+          {{ 'export_positive' }}
+        {% elif meter_sign_mode == 'auto_from_preset' %}
+          {% if meter_power_source in meter_import_positive_presets %}
+            {{ 'import_positive' }}
+          {% else %}
+            {{ 'export_positive' }}
+          {% endif %}
+        {% else %}
+          {{ meter_sign_mode }}
+        {% endif %}
+      meter_factor: >-
+        {{ 1 if (effective_meter_sign_mode | trim) == 'export_positive' else -1 }}
+      current_gs_w: "{{ states(gs_entity) | float(0) }}"
+      inverter_rated_w: 2400
+      has_soc: >-
+        {{ soc_entity | string | length > 0
+           and states(soc_entity) not in ['unknown', 'unavailable', 'none', ''] }}
+      has_is: >-
+        {{ is_entity | string | length > 0
+           and states(is_entity) not in ['unknown', 'unavailable', 'none', ''] }}
+      has_load: >-
+        {{ load_entity | string | length > 0
+           and states(load_entity) not in ['unknown', 'unavailable', 'none', ''] }}
+      has_gp: >-
+        {{ gp_entity | string | length > 0
+           and states(gp_entity) not in ['unknown', 'unavailable', 'none', ''] }}
+      has_pv: >-
+        {{ pv_entity | string | length > 0
+           and states(pv_entity) not in ['unknown', 'unavailable', 'none', ''] }}
+      has_battery: >-
+        {{ battery_entity | string | length > 0
+           and states(battery_entity) not in ['unknown', 'unavailable', 'none', ''] }}
+
+  - variables:
+      normalized_grid_w: >-
+        {{ (meter_raw_w | float(0)) * (meter_factor | float(1)) }}
+      soc_value: >-
+        {% if has_soc | bool(false) %}
+          {{ states(soc_entity) | float(50) }}
+        {% else %}
+          {{ 50 }}
+        {% endif %}
+      current_is_w: >-
+        {% if has_is | bool(false) %}
+          {{ states(is_entity) | float(0) }}
+        {% else %}
+          {{ 0 }}
+        {% endif %}
+      load_power_w: >-
+        {% if has_load | bool(false) %}
+          {{ states(load_entity) | float(0) }}
+        {% else %}
+          {{ 0 }}
+        {% endif %}
+      gp_power_w: >-
+        {% if has_gp | bool(false) %}
+          {{ states(gp_entity) | float(0) }}
+        {% else %}
+          {{ 0 }}
+        {% endif %}
+      pv_power_w: >-
+        {% if has_pv | bool(false) %}
+          {{ states(pv_entity) | float(0) }}
+        {% else %}
+          {{ 0 }}
+        {% endif %}
+      battery_power_w: >-
+        {% if has_battery | bool(false) %}
+          {{ states(battery_entity) | float(0) }}
+        {% else %}
+          {{ 0 }}
+        {% endif %}
+
+  - variables:
+      soc_hysteresis_value: "{{ [soc_hysteresis | float(2), 0] | max }}"
+      current_full_hold_state: "{{ is_state(full_hold_entity, 'on') }}"
+      current_low_hold_state: "{{ is_state(low_hold_entity, 'on') }}"
+      state_mismatch_threshold_w: "{{ [small_error_w | float(30), 30] | max }}"
+      charge_rejected_by_device: >-
+        {% set threshold = state_mismatch_threshold_w | float(30) %}
+        {{ (current_gs_w | float(0)) < (-1 * threshold)
+           and (gp_power_w | float(0)) > (-1 * threshold)
+           and (battery_power_w | float(0)) <= threshold }}
+      full_hold_state: >-
+        {% set soc = soc_value | float(50) %}
+        {% set upper = max_charge_soc | float(100) %}
+        {% set release = upper - (soc_hysteresis_value | float(2)) %}
+        {% if charge_rejected_by_device | bool(false) %}
+          {{ true }}
+        {% elif soc >= upper %}
+          {{ true }}
+        {% elif soc <= release %}
+          {{ false }}
+        {% else %}
+          {{ current_full_hold_state | bool(false) }}
+        {% endif %}
+      low_hold_state_prelim: >-
+        {% set soc = soc_value | float(50) %}
+        {% set lower = min_discharge_soc | float(10) %}
+        {% set release = lower + (soc_hysteresis_value | float(2)) %}
+        {% if soc <= lower %}
+          {{ true }}
+        {% elif soc >= release %}
+          {{ false }}
+        {% else %}
+          {{ current_low_hold_state | bool(false) }}
+        {% endif %}
+
+  - variables:
+      control_error_w: >-
+        {{ (normalized_grid_w | float(0)) - (target_grid_power_w | float(0)) }}
+      positive_load_power_w: >-
+        {{ [load_power_w | float(0), 0] | max }}
+      load_port_backfeed_w: >-
+        {{ [(-1 * (load_power_w | float(0))), 0] | max }}
+      effective_load_power_w: >-
+        {{ load_power_w | float(0) if has_load | bool(false) else 0 }}
+      hardware_output_limit_w: >-
+        {% if full_battery_mode == 'follow_pv'
+              and full_hold_state | bool(false)
+              and has_pv | bool(false) %}
+          {{ inverter_rated_w | float(2400) }}
+        {% else %}
+          {{ [current_is_w | float(0), inverter_rated_w | float(2400)] | min }}
+        {% endif %}
+      load_port_from_inverter_w: >-
+        {% if full_battery_mode == 'follow_pv'
+              and full_hold_state | bool(false)
+              and has_pv | bool(false) %}
+          {{ [positive_load_power_w | float(0), inverter_rated_w | float(2400)] | min }}
+        {% else %}
+          {{ [positive_load_power_w | float(0), [current_is_w | float(0), inverter_rated_w | float(2400)] | min] | min }}
+        {% endif %}
+      load_port_grid_supply_w: >-
+        {% if full_battery_mode == 'follow_pv'
+              and full_hold_state | bool(false)
+              and has_pv | bool(false) %}
+          {{ [(positive_load_power_w | float(0)) - ([positive_load_power_w | float(0), inverter_rated_w | float(2400)] | min), 0] | max }}
+        {% else %}
+          {{ [(positive_load_power_w | float(0)) - ([positive_load_power_w | float(0), [current_is_w | float(0), inverter_rated_w | float(2400)] | min] | min), 0] | max }}
+        {% endif %}
+      estimated_home_load_w: >-
+        {{ (gp_power_w | float(0)) - (normalized_grid_w | float(0)) - (load_port_grid_supply_w | float(0)) }}
+
+  - variables:
+      load_grid_supply_target_w: >-
+        {% if (positive_load_power_w | float(0)) > 0 %}
+          {{ [[(target_grid_power_w | float(0)) - (estimated_home_load_w | float(0)), 0] | max, positive_load_power_w | float(0)] | min }}
+        {% else %}
+          {{ 0 }}
+        {% endif %}
+      raw_grid_port_target_w: >-
+        {% if (load_port_backfeed_w | float(0)) > 0 %}
+          {{ (target_grid_power_w | float(0)) + (estimated_home_load_w | float(0)) }}
+        {% else %}
+          {{ (target_grid_power_w | float(0)) + (estimated_home_load_w | float(0)) + (load_grid_supply_target_w | float(0)) }}
+        {% endif %}
+      desired_load_port_output_w: >-
+        {% if (positive_load_power_w | float(0)) > 0 %}
+          {{ (positive_load_power_w | float(0)) - (load_grid_supply_target_w | float(0)) }}
+        {% else %}
+          {{ 0 }}
+        {% endif %}
+      bypass_active: >-
+        {{ full_battery_mode == 'follow_pv'
+           and full_hold_state | bool(false)
+           and has_pv | bool(false) }}
+      bypass_grid_available_w: >-
+        {% if full_battery_mode == 'follow_pv'
+              and full_hold_state | bool(false)
+              and has_pv | bool(false) %}
+          {% set pv_after_load = [(pv_power_w | float(0)) - (positive_load_power_w | float(0)), 0] | max %}
+          {{ [[pv_after_load + (load_port_backfeed_w | float(0)), 0] | max, gs_max_w | float(2400)] | min }}
+        {% else %}
+          {{ 0 }}
+        {% endif %}
+      bypass_only_candidate: >-
+        {{ bypass_active | bool(false)
+           and ([raw_grid_port_target_w | float(0), 0] | max) <= (bypass_grid_available_w | float(0)) }}
+      bypass_feedback_missing: >-
+        {% set threshold = state_mismatch_threshold_w | float(30) %}
+        {% set required_gp = [raw_grid_port_target_w | float(0), 0] | max %}
+        {{ bypass_active | bool(false)
+           and required_gp > threshold
+           and (gp_power_w | float(0)) < (required_gp - threshold)
+           and (normalized_grid_w | float(0)) < ((target_grid_power_w | float(0)) - threshold) }}
+      bypass_only: >-
+        {{ bypass_only_candidate | bool(false) and not (bypass_feedback_missing | bool(false)) }}
+      raw_is_target_w: >-
+        {{ (desired_load_port_output_w | float(0)) + ([raw_grid_port_target_w | float(0), 0] | max) }}
+      pre_soc_target_is_w: >-
+        {% if bypass_only | bool(false) %}
+          {{ current_is_w | float(0) }}
+        {% else %}
+          {{ raw_is_target_w | float(0) }}
+        {% endif %}
+
+  - variables:
+      discharge_rejected_by_device: >-
+        {% set threshold = state_mismatch_threshold_w | float(30) %}
+        {{ not (bypass_only | bool(false))
+           and (raw_is_target_w | float(0)) > ((pv_power_w | float(0)) + threshold)
+           and (battery_power_w | float(0)) >= (-1 * threshold)
+           and (normalized_grid_w | float(0)) < ((target_grid_power_w | float(0)) - threshold) }}
+      low_hold_state: >-
+        {% if discharge_rejected_by_device | bool(false) %}
+          {{ true }}
+        {% else %}
+          {{ low_hold_state_prelim | bool(false) }}
+        {% endif %}
+      charge_blocked_by_soc: >-
+        {{ full_hold_state | bool(false) }}
+      discharge_blocked_by_soc: >-
+        {{ low_hold_state | bool(false) }}
+      needs_grid_absorption: >-
+        {{ ((target_grid_power_w | float(0)) + (estimated_home_load_w | float(0))) < 0 }}
+
+  - variables:
+      charge_limited_gs_min_w: >-
+        {% set configured_min = gs_min_w | float(-2400) %}
+        {{ [configured_min, -1 * (ac_couple_max_charge_power_w | float(2400))] | max }}
+      effective_gs_min_w: >-
+        {% set configured_min = charge_limited_gs_min_w | float(-2400) %}
+        {% if bypass_only | bool(false) %}
+          {{ 0 }}
+        {% elif (load_port_backfeed_w | float(0)) > 0 and not (needs_grid_absorption | bool(false)) %}
+          {{ [configured_min, 0] | max }}
+        {% elif charge_blocked_by_soc | bool(false) %}
+          {{ [configured_min, 0] | max }}
+        {% else %}
+          {{ configured_min }}
+        {% endif %}
+      effective_gs_max_w: >-
+        {% set configured_max = gs_max_w | float(2400) %}
+        {% if bypass_only | bool(false) %}
+          {{ 0 }}
+        {% elif discharge_blocked_by_soc | bool(false) %}
+          {{ [configured_max, 0] | min }}
+        {% else %}
+          {{ configured_max }}
+        {% endif %}
+
+  - variables:
+      unbounded_target_gs_w: >-
+        {% if bypass_only | bool(false) %}
+          {{ 0 }}
+        {% else %}
+          {{ raw_grid_port_target_w | float(0) }}
+        {% endif %}
+      target_gs_w: >-
+        {% set low = effective_gs_min_w | float(-2400) %}
+        {% set high = effective_gs_max_w | float(2400) %}
+        {{ [[unbounded_target_gs_w | float(0), low] | max, high] | min }}
+      unclamped_target_is_w: >-
+        {% if bypass_only | bool(false) %}
+          {{ current_is_w | float(0) }}
+        {% elif discharge_blocked_by_soc | bool(false) %}
+          {{ [pre_soc_target_is_w | float(0), pv_power_w | float(0)] | min }}
+        {% else %}
+          {{ pre_soc_target_is_w | float(0) }}
+        {% endif %}
+      target_is_w: >-
+        {{ [[unclamped_target_is_w | float(0), 0] | max, inverter_rated_w | float(2400)] | min }}
+      gs_error_w: >-
+        {{ (target_gs_w | float(0)) - (current_gs_w | float(0)) }}
+      is_error_w: >-
+        {{ (target_is_w | float(0)) - (current_is_w | float(0)) }}
+      overall_abs_error_w: >-
+        {{ [control_error_w | float(0) | abs,
+            is_error_w | float(0) | abs,
+            gs_error_w | float(0) | abs] | max }}
+      required_interval_s: >-
+        {% if (overall_abs_error_w | float(0)) >= (large_error_w | float(150)) %}
+          {{ fast_interval_s | float(1) }}
+        {% elif (overall_abs_error_w | float(0)) >= (small_error_w | float(30)) %}
+          {{ medium_interval_s | float(5) }}
+        {% else %}
+          {{ slow_interval_s | float(15) }}
+        {% endif %}
+      proportional_delta_w: >-
+        {{ (gs_error_w | float(0)) * (gain_percent | float(100)) / 100 }}
+      next_is_w: >-
+        {% set resolution = [is_resolution_w | float(10), 1] | max %}
+        {% set rounded = (((target_is_w | float(0)) / resolution) | round(0) * resolution) | float(0) %}
+        {{ [[rounded, 0] | max, inverter_rated_w | float(2400)] | min | round(0) }}
+      seconds_since_is_change: >-
+        {% if has_is | bool(false) %}
+          {{ as_timestamp(now()) - as_timestamp(states[is_entity].last_changed, 0) }}
+        {% else %}
+          {{ 0 }}
+        {% endif %}
+
+  - variables:
+      should_write_is: >-
+        {{ not (bypass_only | bool(false))
+           and (seconds_since_is_change | float(999)) >= (required_interval_s | float(1))
+           and ((next_is_w | float(0)) - (current_is_w | float(0))) | abs >= (is_resolution_w | float(10)) }}
+
+  - variables:
+      max_adjustment_w: >-
+        {% if (overall_abs_error_w | float(0)) >= (large_error_w | float(150)) %}
+          {{ fast_max_step_w | float(500) }}
+        {% elif (overall_abs_error_w | float(0)) >= (small_error_w | float(30)) %}
+          {{ medium_max_step_w | float(100) }}
+        {% else %}
+          {{ small_max_step_w | float(20) }}
+        {% endif %}
+
+  - variables:
+      limited_delta_w: >-
+        {% set delta = proportional_delta_w | float(0) %}
+        {% set limit = max_adjustment_w | float(20) %}
+        {{ [[delta, -limit] | max, limit] | min }}
+
+  - variables:
+      stepped_target_gs_w: "{{ (current_gs_w | float(0)) + (limited_delta_w | float(0)) }}"
+
+  - variables:
+      next_gs_w: >-
+        {% set resolution = [gs_resolution_w | float(1), 1] | max %}
+        {% set rounded = (((stepped_target_gs_w | float(0)) / resolution) | round(0) * resolution) | float(0) %}
+        {% set low = effective_gs_min_w | float(-2400) %}
+        {% set high = effective_gs_max_w | float(2400) %}
+        {{ [[rounded, low] | max, high] | min | round(0) }}
+
+  - variables:
+      seconds_since_gs_change: >-
+        {{ as_timestamp(now()) - as_timestamp(states[gs_entity].last_changed, 0) }}
+
+  - variables:
+      should_write_gs: >-
+        {{ (seconds_since_gs_change | float(999)) >= (required_interval_s | float(1))
+           and (next_gs_w | float(0)) != (current_gs_w | float(0)) }}
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ full_hold_state | bool(false) and not (current_full_hold_state | bool(false)) }}"
+        sequence:
+          - service: input_boolean.turn_on
+            target:
+              entity_id: "{{ full_hold_entity }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ not (full_hold_state | bool(false)) and current_full_hold_state | bool(false) }}"
+        sequence:
+          - service: input_boolean.turn_off
+            target:
+              entity_id: "{{ full_hold_entity }}"
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ low_hold_state | bool(false) and not (current_low_hold_state | bool(false)) }}"
+        sequence:
+          - service: input_boolean.turn_on
+            target:
+              entity_id: "{{ low_hold_entity }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ not (low_hold_state | bool(false)) and current_low_hold_state | bool(false) }}"
+        sequence:
+          - service: input_boolean.turn_off
+            target:
+              entity_id: "{{ low_hold_entity }}"
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ should_write_is }}"
+        sequence:
+          - service: number.set_value
+            target:
+              entity_id: "{{ is_entity }}"
+            data:
+              value: "{{ next_is_w }}"
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ should_write_gs }}"
+        sequence:
+          - service: number.set_value
+            target:
+              entity_id: !input gs_number
+            data:
+              value: "{{ next_gs_w }}"

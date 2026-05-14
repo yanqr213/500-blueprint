@@ -1,0 +1,2231 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SunEnergyXT 零馈电算法模拟器</title>
+  <style>
+    :root {
+      --bg: #f4f0e7;
+      --ink: #17211b;
+      --muted: #687068;
+      --line: #d8d0c1;
+      --card: #fffaf0;
+      --card-strong: #fff4dc;
+      --green: #1c7c54;
+      --green-soft: #dff1e8;
+      --blue: #2364aa;
+      --blue-soft: #dbeaf8;
+      --amber: #b66b00;
+      --amber-soft: #faecd2;
+      --red: #b83a32;
+      --red-soft: #f5dedb;
+      --shadow: 0 22px 60px rgba(46, 34, 18, 0.12);
+      --radius: 22px;
+      color-scheme: light;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 12% 10%, rgba(28, 124, 84, 0.17), transparent 28rem),
+        radial-gradient(circle at 88% 4%, rgba(182, 107, 0, 0.16), transparent 24rem),
+        linear-gradient(135deg, #f7f3ea 0%, #efe7d8 100%);
+      color: var(--ink);
+      font-family: Avenir Next, "DIN Alternate", "Gill Sans", "Trebuchet MS", sans-serif;
+    }
+
+    main {
+      width: min(1480px, calc(100vw - 36px));
+      margin: 0 auto;
+      padding: 28px 0 36px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 22px;
+      align-items: end;
+      margin-bottom: 22px;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 980px;
+      font-size: clamp(34px, 4vw, 64px);
+      line-height: 0.96;
+      letter-spacing: -0.055em;
+    }
+
+    .subtitle {
+      margin: 16px 0 0;
+      max-width: 900px;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.7;
+    }
+
+    .run-card {
+      width: min(360px, 100%);
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 250, 240, 0.82);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+    }
+
+    .run-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .run-title {
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 10px 15px;
+      background: var(--ink);
+      color: #fff8e8;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 22px rgba(23, 33, 27, 0.18);
+    }
+
+    button.secondary {
+      background: #e7dfd1;
+      color: var(--ink);
+    }
+
+    .tick {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .tick div {
+      border-radius: 14px;
+      padding: 9px 10px;
+      background: #f7edd9;
+      border: 1px solid #eadcc5;
+    }
+
+    .tick span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .tick strong {
+      display: block;
+      margin-top: 2px;
+      font-size: 18px;
+      letter-spacing: -0.03em;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 250, 240, 0.9);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 18px 20px 14px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 244, 220, 0.75);
+    }
+
+    .panel-head h2 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: -0.025em;
+    }
+
+    .panel-head small {
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .controls {
+      padding: 18px;
+    }
+
+    .control {
+      padding: 14px 0;
+      border-bottom: 1px solid rgba(216, 208, 193, 0.82);
+    }
+
+    .control:last-child {
+      border-bottom: 0;
+    }
+
+    .label-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    label {
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .value {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-weight: 800;
+      color: var(--green);
+    }
+
+    .hint {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--green);
+    }
+
+    input[type="number"],
+    select {
+      width: 100%;
+      padding: 10px 11px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fffdf7;
+      color: var(--ink);
+      font: inherit;
+      font-weight: 700;
+    }
+
+    .two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .dashboard {
+      display: grid;
+      gap: 20px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .metric {
+      position: relative;
+      min-height: 142px;
+      padding: 17px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: rgba(255, 250, 240, 0.88);
+      box-shadow: 0 14px 40px rgba(46, 34, 18, 0.08);
+      overflow: hidden;
+    }
+
+    .metric::after {
+      content: "";
+      position: absolute;
+      right: -36px;
+      bottom: -46px;
+      width: 112px;
+      height: 112px;
+      border-radius: 50%;
+      background: var(--blue-soft);
+      opacity: 0.75;
+    }
+
+    .metric.green::after {
+      background: var(--green-soft);
+    }
+
+    .metric.amber::after {
+      background: var(--amber-soft);
+    }
+
+    .metric.red::after {
+      background: var(--red-soft);
+    }
+
+    .metric .name {
+      position: relative;
+      z-index: 1;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .metric .big {
+      position: relative;
+      z-index: 1;
+      margin-top: 14px;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: clamp(27px, 3vw, 42px);
+      line-height: 1;
+      letter-spacing: -0.06em;
+    }
+
+    .metric .desc {
+      position: relative;
+      z-index: 1;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .flow-board {
+      display: grid;
+      grid-template-columns: 1fr 320px 1fr;
+      gap: 14px;
+      align-items: stretch;
+      padding: 18px;
+    }
+
+    .rail {
+      display: grid;
+      gap: 12px;
+    }
+
+    .port {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px;
+      background: #fffdf7;
+    }
+
+    .port h3 {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 0 0 10px;
+      font-size: 15px;
+      letter-spacing: -0.02em;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 5px 9px;
+      background: #f1e7d6;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .port-value {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: -0.055em;
+    }
+
+    .bar {
+      height: 11px;
+      margin-top: 10px;
+      border-radius: 999px;
+      background: #efe6d7;
+      overflow: hidden;
+    }
+
+    .bar span {
+      display: block;
+      width: 50%;
+      height: 100%;
+      border-radius: inherit;
+      transform-origin: center;
+      transition: width 260ms ease, margin-left 260ms ease, background 260ms ease;
+    }
+
+    .power-map {
+      margin: 18px 18px 0;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background:
+        radial-gradient(circle at 18% 12%, rgba(28, 124, 84, 0.1), transparent 20rem),
+        radial-gradient(circle at 84% 24%, rgba(35, 100, 170, 0.1), transparent 20rem),
+        #fffdf7;
+      overflow-x: auto;
+    }
+
+    .map-caption {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px 0;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .map-caption strong {
+      color: var(--ink);
+      font-size: 14px;
+      letter-spacing: -0.02em;
+    }
+
+    .power-map svg {
+      display: block;
+      width: 100%;
+      min-width: 980px;
+      height: auto;
+    }
+
+    .map-node rect {
+      fill: rgba(255, 250, 240, 0.96);
+      stroke: #d7cbb8;
+      stroke-width: 1.3;
+      filter: drop-shadow(0 10px 18px rgba(46, 34, 18, 0.08));
+    }
+
+    .map-node.core rect {
+      fill: #1d2a22;
+      stroke: rgba(255, 255, 255, 0.18);
+    }
+
+    .map-node.limit rect {
+      fill: #fff2d8;
+      stroke: #e5c589;
+    }
+
+    .map-node.protect rect {
+      fill: #f8e4e1;
+      stroke: #dfaaa4;
+    }
+
+    .map-title {
+      fill: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .map-node.core .map-title {
+      fill: rgba(249, 242, 223, 0.66);
+    }
+
+    .map-value {
+      fill: var(--ink);
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 21px;
+      font-weight: 900;
+      letter-spacing: -0.06em;
+    }
+
+    .map-value.positive {
+      fill: var(--green);
+    }
+
+    .map-value.negative {
+      fill: var(--blue);
+    }
+
+    .map-value.warn {
+      fill: var(--amber);
+    }
+
+    .map-value.danger {
+      fill: var(--red);
+    }
+
+    .map-node.core .map-value {
+      fill: #f9f2df;
+    }
+
+    .map-note {
+      fill: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .map-node.core .map-note {
+      fill: rgba(249, 242, 223, 0.58);
+    }
+
+    .map-flow {
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 0;
+      opacity: 0;
+      transition: stroke-width 260ms ease, opacity 260ms ease;
+      stroke-dasharray: 14 12;
+      animation: map-dash 1.25s linear infinite;
+    }
+
+    .map-static {
+      fill: none;
+      stroke: rgba(23, 33, 27, 0.68);
+      stroke-width: 2;
+      stroke-linecap: square;
+      stroke-linejoin: miter;
+    }
+
+    .map-flow.green {
+      stroke: var(--green);
+    }
+
+    .map-flow.blue {
+      stroke: var(--blue);
+    }
+
+    .map-flow.amber {
+      stroke: var(--amber);
+    }
+
+    .map-flow.red {
+      stroke: var(--red);
+    }
+
+    .map-flow-label {
+      fill: var(--ink);
+      paint-order: stroke;
+      stroke: #fffdf7;
+      stroke-width: 5px;
+      stroke-linejoin: round;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 15px;
+      font-weight: 900;
+      letter-spacing: -0.045em;
+    }
+
+    .map-wire-label {
+      fill: var(--ink);
+      paint-order: stroke;
+      stroke: #fffdf7;
+      stroke-width: 4px;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 14px;
+      font-weight: 900;
+    }
+
+    .map-legend {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      padding: 0 16px 16px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--green);
+    }
+
+    .legend-dot.blue {
+      background: var(--blue);
+    }
+
+    .legend-dot.amber {
+      background: var(--amber);
+    }
+
+    .legend-dot.red {
+      background: var(--red);
+    }
+
+    @keyframes map-dash {
+      to {
+        stroke-dashoffset: -26;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .map-flow {
+        animation: none;
+      }
+    }
+
+    .device {
+      position: relative;
+      min-height: 470px;
+      border: 1px solid #cfc4b2;
+      border-radius: 34px;
+      background:
+        linear-gradient(145deg, #243127 0%, #18231c 58%, #0e1712 100%);
+      color: #f9f2df;
+      box-shadow: inset 0 0 0 8px rgba(255, 255, 255, 0.035), 0 26px 55px rgba(24, 35, 28, 0.25);
+      padding: 22px;
+      overflow: hidden;
+    }
+
+    .device::before {
+      content: "";
+      position: absolute;
+      inset: -42px auto auto -52px;
+      width: 190px;
+      height: 190px;
+      border-radius: 50%;
+      background: rgba(52, 211, 153, 0.16);
+      filter: blur(6px);
+    }
+
+    .device-top {
+      position: relative;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .brand {
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: -0.045em;
+    }
+
+    .model {
+      margin-top: 4px;
+      color: rgba(249, 242, 223, 0.66);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .soc {
+      text-align: right;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 27px;
+      font-weight: 900;
+    }
+
+    .device-screen {
+      position: relative;
+      margin-top: 28px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 22px;
+      padding: 16px;
+      background: rgba(255, 250, 240, 0.08);
+    }
+
+    .screen-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .screen-row:last-child {
+      border-bottom: 0;
+    }
+
+    .screen-row span {
+      color: rgba(249, 242, 223, 0.64);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .screen-row strong {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 17px;
+    }
+
+    .power-lines {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .line-card {
+      border-radius: 17px;
+      padding: 12px 10px;
+      background: rgba(255, 255, 255, 0.08);
+      text-align: center;
+    }
+
+    .line-card span {
+      display: block;
+      color: rgba(249, 242, 223, 0.62);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .line-card strong {
+      display: block;
+      margin-top: 7px;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 18px;
+    }
+
+    .internal-board {
+      padding: 18px;
+      display: grid;
+      grid-template-columns: 1fr 1.25fr 1fr;
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .internal-node {
+      position: relative;
+      min-height: 108px;
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: #fffdf7;
+      overflow: hidden;
+    }
+
+    .internal-node.bus {
+      display: grid;
+      align-content: center;
+      min-height: 386px;
+      background:
+        linear-gradient(160deg, rgba(28, 124, 84, 0.14), rgba(35, 100, 170, 0.12)),
+        #fffdf7;
+    }
+
+    .internal-node h3 {
+      margin: 0;
+      font-size: 15px;
+      letter-spacing: -0.02em;
+    }
+
+    .internal-node .node-value {
+      margin-top: 10px;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: -0.055em;
+    }
+
+    .internal-node p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .internal-stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .bus-lines {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .bus-line {
+      display: grid;
+      grid-template-columns: 112px 1fr 78px;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .bus-track {
+      position: relative;
+      height: 10px;
+      border-radius: 999px;
+      background: #e9dfce;
+      overflow: hidden;
+    }
+
+    .bus-track span {
+      display: block;
+      height: 100%;
+      width: 0;
+      border-radius: 999px;
+      background: var(--green);
+      transition: width 260ms ease, background 260ms ease;
+    }
+
+    .bus-line strong {
+      text-align: right;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      color: var(--ink);
+    }
+
+    .logic-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: rgba(255, 244, 220, 0.75);
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    td:last-child,
+    th:last-child {
+      text-align: right;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-weight: 800;
+    }
+
+    .model-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      padding: 18px;
+    }
+
+    .model-field {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px;
+      background: #fffdf7;
+    }
+
+    .model-field code {
+      display: inline-flex;
+      border-radius: 9px;
+      padding: 3px 7px;
+      background: #f1e7d6;
+      color: var(--ink);
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .model-field strong {
+      display: block;
+      margin-top: 9px;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 22px;
+      letter-spacing: -0.05em;
+    }
+
+    .model-field span {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .events {
+      height: 360px;
+      overflow: auto;
+      padding: 10px 14px 14px;
+      background: #fffdf7;
+    }
+
+    .event {
+      display: grid;
+      grid-template-columns: 54px 1fr;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(216, 208, 193, 0.72);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .event time {
+      color: var(--muted);
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-weight: 800;
+    }
+
+    .event strong {
+      display: block;
+      font-size: 13px;
+    }
+
+    .positive {
+      color: var(--green);
+    }
+
+    .negative {
+      color: var(--blue);
+    }
+
+    .warn {
+      color: var(--amber);
+    }
+
+    .danger {
+      color: var(--red);
+    }
+
+    .note {
+      padding: 16px 18px;
+      border-top: 1px solid var(--line);
+      background: #fffdf7;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    @media (max-width: 1120px) {
+      .hero,
+      .layout,
+      .logic-grid,
+      .flow-board,
+      .internal-board {
+        grid-template-columns: 1fr;
+      }
+
+      .run-card {
+        width: 100%;
+      }
+
+      .summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .model-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .device {
+        min-height: 360px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      main {
+        width: min(100% - 22px, 1480px);
+        padding-top: 18px;
+      }
+
+      .summary-grid,
+      .two,
+      .model-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .panel-head {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <div>
+        <h1>SunEnergyXT 零馈电闭环模拟器</h1>
+        <p class="subtitle">
+          这个页面按 1 秒周期模拟 Home Assistant 蓝图控制逻辑。你可以拖动家庭侧净负载、负载口功率和光伏输入，观察外部电表实时值如何驱动 `IS` 与 `GS`，以及设备每个端口的功率流向。
+        </p>
+      </div>
+      <aside class="run-card">
+        <div class="run-row">
+          <div>
+            <div class="run-title">控制循环</div>
+            <small id="runState">运行中，每 1 秒调整一次</small>
+          </div>
+          <button id="toggleRun" type="button">暂停</button>
+        </div>
+        <div class="tick">
+          <div><span>Tick</span><strong id="tickCount">0</strong></div>
+          <div><span>周期</span><strong>1s</strong></div>
+          <div><span>死区</span><strong>0W</strong></div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="layout">
+      <aside class="panel">
+        <div class="panel-head">
+          <h2>工况输入</h2>
+          <small>拖动即生效</small>
+        </div>
+        <div class="controls">
+          <div class="control">
+            <div class="label-row">
+              <label for="deviceType">设备类型</label>
+              <span class="value" id="deviceLimit">2400W</span>
+            </div>
+            <select id="deviceType">
+              <option value="500">SunEnergyXT 500，最大并网输出 800W</option>
+              <option value="500pro" selected>SunEnergyXT 500 Pro，最大并网输出 2400W</option>
+            </select>
+            <p class="hint">仅限制最大并网输出功率；逆变额定、最大充电功率、最大并网输入功率都按 2400W。</p>
+          </div>
+
+          <div class="control">
+            <div class="label-row">
+              <label for="userGridLimit">用户最大并网输出功率</label>
+              <span class="value" id="userGridLimitValue">2400W</span>
+            </div>
+            <input id="userGridLimit" type="range" min="0" max="2400" step="10" value="2400">
+            <p class="hint">实际 GP 上限取 min(设备型号上限, 用户设置上限)。500 最大 800W，500 Pro 最大 2400W。</p>
+          </div>
+
+          <div class="control">
+            <div class="label-row">
+              <label for="homeLoad">家庭侧净负载</label>
+              <span class="value" id="homeLoadValue">800W</span>
+            </div>
+            <input id="homeLoad" type="range" min="-2400" max="4800" step="10" value="800">
+            <p class="hint">正数表示家庭除一体机外正在用电；负数表示家庭侧有其他发电源，例如屋顶光伏或微逆向外送电。</p>
+          </div>
+
+          <div class="control">
+            <div class="label-row">
+              <label for="loadPortPower">一体机负载口功率 LP</label>
+              <span class="value" id="loadPortPowerValue">400W</span>
+            </div>
+            <input id="loadPortPower" type="range" min="-2400" max="2400" step="10" value="400">
+            <p class="hint">正数表示负载口有负载消耗；负数表示负载口接了微逆或其他 AC 源并回灌。</p>
+          </div>
+
+          <div class="control">
+            <div class="label-row">
+              <label for="pvPower">光伏输入功率 PV</label>
+              <span class="value" id="pvPowerValue">1200W</span>
+            </div>
+            <input id="pvPower" type="range" min="0" max="3200" step="10" value="1200">
+          </div>
+
+          <div class="control">
+            <div class="label-row">
+              <label for="soc">电池 SOC</label>
+              <span class="value" id="socValue">60%</span>
+            </div>
+            <input id="soc" type="range" min="0" max="100" step="1" value="60">
+          </div>
+
+          <div class="control two">
+            <div>
+              <div class="label-row">
+                <label for="socLow">SOC 下限</label>
+                <span class="value" id="socLowValue">10%</span>
+              </div>
+              <input id="socLow" type="range" min="0" max="50" step="1" value="10">
+            </div>
+            <div>
+              <div class="label-row">
+                <label for="socHigh">SOC 上限</label>
+                <span class="value" id="socHighValue">100%</span>
+              </div>
+              <input id="socHigh" type="range" min="50" max="100" step="1" value="100">
+            </div>
+          </div>
+
+          <div class="control two">
+            <div>
+              <div class="label-row">
+                <label for="socHys">SOC 回差</label>
+                <span class="value" id="socHysValue">2%</span>
+              </div>
+              <input id="socHys" type="range" min="0" max="20" step="1" value="2">
+            </div>
+            <div>
+              <div class="label-row">
+                <label for="targetGrid">目标电表值</label>
+                <span class="value" id="targetGridValue">0W</span>
+              </div>
+              <input id="targetGrid" type="range" min="-200" max="200" step="1" value="0">
+            </div>
+          </div>
+
+          <div class="control">
+            <div class="label-row">
+              <label for="fullBatteryMode">满电后策略</label>
+            </div>
+            <select id="fullBatteryMode">
+              <option value="follow_load" selected>跟随负载：禁止继续充电，多余 PV 可浪费/限发</option>
+              <option value="follow_pv">跟随光伏：GS 最小值提高到 min(PV, 最大并网输出)</option>
+            </select>
+          </div>
+
+          <div class="control">
+            <div class="label-row">
+              <label for="acChargeLimit">ACCouple 最大充电功率</label>
+              <span class="value" id="acChargeLimitValue">2400W</span>
+            </div>
+            <input id="acChargeLimit" type="range" min="0" max="2400" step="10" value="2400">
+          </div>
+
+          <div class="control two">
+            <button id="scenarioBase" class="secondary" type="button">负载 400 / 馈电 200</button>
+            <button id="scenarioMicro" class="secondary" type="button">负载口微逆</button>
+            <button id="scenarioCharge" class="secondary" type="button">市电充电叠负载</button>
+            <button id="scenarioDischarge" class="secondary" type="button">市电放电叠负载</button>
+            <button id="restoreLoadPort" class="secondary" type="button">手动恢复负载口</button>
+          </div>
+        </div>
+      </aside>
+
+      <section class="dashboard">
+        <div class="summary-grid">
+          <article class="metric green">
+            <div class="name">外部电表实时值</div>
+            <div class="big" id="meterPower">0W</div>
+            <div class="desc">正数=家庭馈电，负数=家庭购电。控制目标默认为 0W。</div>
+          </article>
+          <article class="metric amber">
+            <div class="name">GS 并网口设定</div>
+            <div class="big" id="gsValue">0W</div>
+            <div class="desc">正数=并网输出，负数=市电输入/充电。</div>
+          </article>
+          <article class="metric blue">
+            <div class="name">IS 逆变上限</div>
+            <div class="big" id="isValue">2400W</div>
+            <div class="desc">逆变器总输出上限；负载口优先占用，剩余部分才进入并网口。</div>
+          </article>
+          <article class="metric red">
+            <div class="name">PB 电池功率</div>
+            <div class="big" id="batteryPower">0W</div>
+            <div class="desc">正数=充电，负数=放电。由端口功率平衡推算。</div>
+          </article>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2>设备端口实时功率</h2>
+            <small>正负方向按文档语义显示</small>
+          </div>
+          <div class="power-map">
+            <div class="map-caption">
+              <strong>设备内部实时数据流图</strong>
+              <span id="powerMapStatus">按设备拓扑显示：逆变器、电池、IS 分支、并网口、离网口/负载、电网</span>
+            </div>
+            <svg viewBox="0 0 1180 640" role="img" aria-labelledby="powerMapTitle powerMapDesc">
+              <title id="powerMapTitle">SunEnergyXT 实时功率流向图</title>
+              <desc id="powerMapDesc">按设备拓扑显示逆变器、电池、IS 分支、并网口、离网口负载和电网之间的实时功率流向。</desc>
+              <defs>
+                <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--green)"></path>
+                </marker>
+                <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--blue)"></path>
+                </marker>
+                <marker id="arrowAmber" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--amber)"></path>
+                </marker>
+                <marker id="arrowRed" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--red)"></path>
+                </marker>
+              </defs>
+
+              <path class="map-static" d="M 470 255 H 620 V 135 H 705"></path>
+              <path class="map-static" d="M 620 255 V 455 H 705"></path>
+              <path class="map-static" d="M 895 135 H 970"></path>
+              <path id="mapFlowBatteryToInverter" class="map-flow blue" marker-end="url(#arrowBlue)" d="M 296 448 C 300 390 314 332 330 285"></path>
+              <path id="mapFlowInverterToBattery" class="map-flow amber" marker-end="url(#arrowAmber)" d="M 370 285 C 358 348 336 404 304 448"></path>
+              <path id="mapFlowInverterToIs" class="map-flow green" marker-end="url(#arrowGreen)" d="M 470 255 H 620"></path>
+              <path id="mapFlowIsToGridPort" class="map-flow blue" marker-end="url(#arrowBlue)" d="M 620 255 V 135 H 705"></path>
+              <path id="mapFlowIsToLoadPort" class="map-flow blue" marker-end="url(#arrowBlue)" d="M 620 255 V 455 H 705"></path>
+              <path id="mapFlowLoadPortToIs" class="map-flow blue" marker-end="url(#arrowBlue)" d="M 705 485 H 620 V 285"></path>
+              <path id="mapFlowGridPortToGrid" class="map-flow blue" marker-end="url(#arrowBlue)" d="M 895 135 H 970"></path>
+              <path id="mapFlowGridToGridPort" class="map-flow amber" marker-end="url(#arrowAmber)" d="M 970 165 H 895"></path>
+              <path id="mapFlowPvLimited" class="map-flow red" marker-end="url(#arrowRed)" d="M 242 188 C 158 182 120 216 108 272"></path>
+              <path id="mapFlowReject" class="map-flow red" marker-end="url(#arrowRed)" d="M 775 522 C 840 572 940 580 1010 528"></path>
+
+              <g class="map-node core" transform="translate(120 190)">
+                <rect width="350" height="130" rx="12"></rect>
+                <text class="map-title" x="26" y="34">逆变器</text>
+                <text class="map-value" id="mapInverter" x="26" y="70">0W</text>
+                <text class="map-note" id="mapPvInfo" x="26" y="100">PV 0W / 限发 0W</text>
+              </g>
+
+              <g class="map-node" transform="translate(120 448)">
+                <rect width="350" height="120" rx="12"></rect>
+                <text class="map-title" x="26" y="34">电池</text>
+                <text class="map-value" id="mapBattery" x="26" y="70">0W</text>
+                <text class="map-note" id="mapBatteryNote" x="26" y="98">PB：正=充电，负=放电</text>
+              </g>
+
+              <g class="map-node core" transform="translate(560 220)">
+                <rect width="120" height="70" rx="12"></rect>
+                <text class="map-title" x="20" y="27">IS</text>
+                <text class="map-value" id="mapIs" x="20" y="54">0W</text>
+              </g>
+
+              <g class="map-node" transform="translate(705 72)">
+                <rect width="190" height="126" rx="12"></rect>
+                <text class="map-title" x="26" y="36">并网口</text>
+                <text class="map-value" id="mapGridPort" x="26" y="74">0W</text>
+                <text class="map-note" id="mapGsNote" x="26" y="102">GS 0W</text>
+              </g>
+
+              <g class="map-node" transform="translate(705 392)">
+                <rect width="190" height="126" rx="12"></rect>
+                <text class="map-title" x="26" y="36">离网口 / 负载</text>
+                <text class="map-value" id="mapLoadPort" x="26" y="74">400W</text>
+                <text class="map-note" id="mapLoadPortState" x="26" y="102">connected</text>
+              </g>
+
+              <g class="map-node" transform="translate(970 72)">
+                <rect width="170" height="126" rx="12"></rect>
+                <text class="map-title" x="26" y="36">电网</text>
+                <text class="map-value" id="mapGrid" x="26" y="74">0W</text>
+                <text class="map-note" id="mapMeterNote" x="26" y="102">电表 0W</text>
+              </g>
+
+              <g class="map-node protect" transform="translate(970 488)">
+                <rect width="170" height="78" rx="12"></rect>
+                <text class="map-title" x="20" y="28">限发 / 保护</text>
+                <text class="map-value" id="mapReject" x="20" y="58">0W</text>
+              </g>
+
+              <text class="map-wire-label" x="492" y="242">IS</text>
+              <text class="map-wire-label" x="908" y="126">GS</text>
+              <text id="mapLabelBatteryToInverter" class="map-flow-label" x="236" y="382">0W</text>
+              <text id="mapLabelInverterToBattery" class="map-flow-label" x="364" y="382">0W</text>
+              <text id="mapLabelInverterToIs" class="map-flow-label" x="510" y="238">0W</text>
+              <text id="mapLabelIsToGridPort" class="map-flow-label" x="636" y="176">0W</text>
+              <text id="mapLabelIsToLoadPort" class="map-flow-label" x="636" y="360">0W</text>
+              <text id="mapLabelLoadPortToIs" class="map-flow-label" x="642" y="548">0W</text>
+              <text id="mapLabelGridPortToGrid" class="map-flow-label" x="914" y="116">0W</text>
+              <text id="mapLabelGridToGridPort" class="map-flow-label" x="914" y="188">0W</text>
+              <text id="mapLabelPvLimited" class="map-flow-label" x="116" y="250">0W</text>
+              <text id="mapLabelReject" class="map-flow-label" x="826" y="586">0W</text>
+            </svg>
+            <div class="map-legend">
+              <span class="legend-item"><i class="legend-dot"></i>逆变器正向输出</span>
+              <span class="legend-item"><i class="legend-dot blue"></i>放电 / 对外输出 / 回灌</span>
+              <span class="legend-item"><i class="legend-dot amber"></i>充电 / 市电输入</span>
+              <span class="legend-item"><i class="legend-dot red"></i>限发 / 不可吸收</span>
+            </div>
+          </div>
+          <div class="flow-board">
+            <div class="rail">
+              <div class="port">
+                <h3>PV 光伏输入 <span class="pill">PV</span></h3>
+                <div class="port-value positive" id="pvPort">1200W</div>
+                <div class="bar"><span id="pvBar"></span></div>
+              </div>
+              <div class="port">
+                <h3>负载口功率 <span class="pill">LP</span></h3>
+                <div class="port-value" id="lpPort">400W</div>
+                <div class="bar"><span id="lpBar"></span></div>
+                <p class="hint" id="loadPortProtectionHint">LP 为负时代表负载口回灌，模拟“负载口接微逆”。</p>
+              </div>
+            </div>
+
+            <div class="device">
+              <div class="device-top">
+                <div>
+                  <div class="brand">SunEnergyXT</div>
+                  <div class="model" id="deviceModel">500 Pro model</div>
+                </div>
+                <div class="soc"><span id="socScreen">60</span>%</div>
+              </div>
+              <div class="device-screen">
+                <div class="screen-row"><span>GS Target</span><strong id="screenGs">0W</strong></div>
+                <div class="screen-row"><span>IS Limit</span><strong id="screenIs">2400W</strong></div>
+                <div class="screen-row"><span>Inverter Output</span><strong id="screenInverter">400W</strong></div>
+                <div class="screen-row"><span>Grid Port</span><strong id="screenGrid">0W</strong></div>
+                <div class="screen-row"><span>Battery</span><strong id="screenBattery">0W</strong></div>
+              </div>
+              <div class="power-lines">
+                <div class="line-card"><span>MPPT Input</span><strong id="pvUsed">0W</strong></div>
+                <div class="line-card"><span>PV Limited</span><strong id="pvCurtail">0W</strong></div>
+                <div class="line-card"><span>Loss/Gap</span><strong id="balanceGap">0W</strong></div>
+              </div>
+            </div>
+
+            <div class="rail">
+              <div class="port">
+                <h3>并网口功率 <span class="pill">GP / GS</span></h3>
+                <div class="port-value" id="gridPort">0W</div>
+                <div class="bar"><span id="gridBar"></span></div>
+                <p class="hint">正数输出到家庭/电网；负数从市电输入到设备。</p>
+              </div>
+              <div class="port">
+                <h3>家庭侧净负载 <span class="pill">House</span></h3>
+                <div class="port-value" id="housePort">800W</div>
+                <div class="bar"><span id="houseBar"></span></div>
+                <p class="hint">不含一体机端口。负数表示家庭侧其他电源发电。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2>当前物模型实时状态</h2>
+            <small>按设备字段语义推算，非云端配置字段</small>
+          </div>
+          <div class="model-grid" id="modelGrid"></div>
+          <div class="note">
+            这里的 `PV` 表示设备物模型里的 MPPT 实际输入功率，不是滑块上的光伏阵列可用功率。满电或无处消纳时，模拟器会降低 MPPT 实际吸收，所以你会看到 `PV` 下降而“PV 阵列可用功率”不变。
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2>内部结构与功率流向</h2>
+            <small>区分 PV 可用功率、MPPT 实际吸收功率和不可吸收回流</small>
+          </div>
+          <div class="internal-board">
+            <div class="internal-stack">
+              <div class="internal-node">
+                <h3>PV 阵列可用功率</h3>
+                <div class="node-value positive" id="pvAvailableNode">1200W</div>
+                <p>滑块输入的光伏可用功率，不代表 MPPT 一定全部吸收。</p>
+              </div>
+              <div class="internal-node">
+                <h3>MPPT 实际吸收</h3>
+                <div class="node-value positive" id="mpptNode">1200W</div>
+                <p>满电或无处消纳时，会降低 MPPT 侧吸收功率；光伏可用功率本身不降低。</p>
+              </div>
+              <div class="internal-node">
+                <h3>PV 限发/未吸收</h3>
+                <div class="node-value warn" id="pvLimitedNode">0W</div>
+                <p>这是“光伏侧没有被拿进机器”的功率，不是进入电池或负载口。</p>
+              </div>
+            </div>
+
+            <div class="internal-node bus">
+              <h3>内部 DC 母线 / 能量平衡</h3>
+              <div class="node-value" id="dcBusNode">0W</div>
+              <p id="dcBusHint">母线平衡表示所有可控能量都有去向。</p>
+              <div class="bus-lines">
+                <div class="bus-line">
+                  <span>MPPT -> DC</span>
+                  <div class="bus-track"><span id="flowMppt"></span></div>
+                  <strong id="flowMpptValue">0W</strong>
+                </div>
+                <div class="bus-line">
+                  <span>DC -> AC逆变</span>
+                  <div class="bus-track"><span id="flowInv"></span></div>
+                  <strong id="flowInvValue">0W</strong>
+                </div>
+                <div class="bus-line">
+                  <span>电池 PB</span>
+                  <div class="bus-track"><span id="flowBattery"></span></div>
+                  <strong id="flowBatteryValue">0W</strong>
+                </div>
+                <div class="bus-line">
+                  <span>AC -> 电池</span>
+                  <div class="bus-track"><span id="flowAcCharge"></span></div>
+                  <strong id="flowAcChargeValue">0W</strong>
+                </div>
+                <div class="bus-line">
+                  <span>LP -> GP</span>
+                  <div class="bus-track"><span id="flowLoadToGrid"></span></div>
+                  <strong id="flowLoadToGridValue">0W</strong>
+                </div>
+                <div class="bus-line">
+                  <span>不可吸收</span>
+                  <div class="bus-track"><span id="flowReject"></span></div>
+                  <strong id="flowRejectValue">0W</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="internal-stack">
+              <div class="internal-node">
+                <h3>AC 逆变器输出</h3>
+                <div class="node-value positive" id="acOutputNode">0W</div>
+                <p>受 `IS`、`GS` 和 2400W 逆变额定功率约束。</p>
+              </div>
+              <div class="internal-node">
+                <h3>负载口回灌</h3>
+                <div class="node-value negative" id="loadBackfeedNode">0W</div>
+                <p>负载口接微逆时的 AC 回灌。满电且 GS 不允许输出时，这部分不能凭空进入电池。</p>
+              </div>
+              <div class="internal-node">
+                <h3>负载口保护</h3>
+                <div class="node-value" id="loadProtectNode">已连接</div>
+                <p id="loadProtectHint">当负载口微逆回灌超过当前正向 GS/GP 可输出功率时，模拟断开负载口；可手动恢复，也可等待 3 小时自动恢复。</p>
+              </div>
+              <div class="internal-node">
+                <h3>并网 AC/DC 通道</h3>
+                <div class="node-value" id="gridConverterNode">0W</div>
+                <p>正数输出到家庭/电网，负数从市电侧输入到设备。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="logic-grid">
+          <div class="panel">
+            <div class="panel-head">
+              <h2>本轮算法变量</h2>
+              <small>按蓝图逻辑</small>
+            </div>
+            <table>
+              <tbody id="logicTable"></tbody>
+            </table>
+            <div class="note">
+              这里的外部电表值由模拟得到：家庭侧净负载 - 设备并网口输出。目标为 0W 时，算法会尽量让电表读数收敛到 0。`IS` 是逆变器总输出上限，硬件按“负载口优先、剩余到并网口”分配；所以蓝图目标会把负载口正向功率和目标并网输出一起计入 `IS`。
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <h2>写入日志</h2>
+              <small>最近 80 条</small>
+            </div>
+            <div class="events" id="events"></div>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+    const roundTo = (value, step) => Math.round(value / step) * step;
+    const signClass = (value) => value > 0 ? "positive" : value < 0 ? "negative" : "";
+    const fmt = (value, unit = "W") => `${Math.round(value)}${unit}`;
+
+    const controls = {
+      deviceType: $("deviceType"),
+      userGridLimit: $("userGridLimit"),
+      homeLoad: $("homeLoad"),
+      loadPortPower: $("loadPortPower"),
+      pvPower: $("pvPower"),
+      soc: $("soc"),
+      socLow: $("socLow"),
+      socHigh: $("socHigh"),
+      socHys: $("socHys"),
+      targetGrid: $("targetGrid"),
+      fullBatteryMode: $("fullBatteryMode"),
+      acChargeLimit: $("acChargeLimit")
+    };
+
+    const state = {
+      running: true,
+      tick: 0,
+      gs: 0,
+      is: 2400,
+      lastGsWriteTick: -999,
+      lastIsWriteTick: -999,
+      loadPortConnected: true,
+      loadPortReconnectTick: 0,
+      fullChargeHold: false,
+      lowDischargeHold: false,
+      logs: []
+    };
+
+    const params = {
+      inverterRatedW: 2400,
+      maxChargeW: 2400,
+      maxGridInputW: 2400,
+      gsResolutionW: 1,
+      isResolutionW: 10,
+      smallErrorW: 30,
+      largeErrorW: 150,
+      slowIntervalS: 15,
+      mediumIntervalS: 5,
+      fastIntervalS: 1,
+      smallMaxStepW: 20,
+      mediumMaxStepW: 100,
+      fastMaxStepW: 500,
+      gain: 1,
+      isHeadroomW: 0,
+      loadPortReconnectSeconds: 3 * 60 * 60
+    };
+
+    function inputNumber(name) {
+      return Number(controls[name].value);
+    }
+
+    function deviceMaxOutput() {
+      return controls.deviceType.value === "500" ? 800 : 2400;
+    }
+
+    function effectiveGridOutputLimit() {
+      return Math.min(deviceMaxOutput(), inputNumber("userGridLimit"));
+    }
+
+    function pushLog(title, body) {
+      const now = new Date();
+      state.logs.unshift({
+        time: now.toLocaleTimeString("zh-CN", { hour12: false }),
+        title,
+        body
+      });
+      state.logs = state.logs.slice(0, 80);
+    }
+
+    function getInterval(absError) {
+      if (absError >= params.largeErrorW) return params.fastIntervalS;
+      if (absError >= params.smallErrorW) return params.mediumIntervalS;
+      return params.slowIntervalS;
+    }
+
+    function getMaxStep(absError) {
+      if (absError >= params.largeErrorW) return params.fastMaxStepW;
+      if (absError >= params.smallErrorW) return params.mediumMaxStepW;
+      return params.smallMaxStepW;
+    }
+
+    function effectiveLoadPortPower(snapshot) {
+      return state.loadPortConnected ? snapshot.loadPortPower : 0;
+    }
+
+    function gridDemandForZeroFeed(snapshot, effectiveLoadPort) {
+      const positiveLoadPort = Math.max(effectiveLoadPort, 0);
+      const loadPortBackfeed = Math.max(-effectiveLoadPort, 0);
+      const loadGridSupplyTarget = positiveLoadPort > 0
+        ? clamp(snapshot.targetGrid - snapshot.homeLoad, 0, positiveLoadPort)
+        : 0;
+      return loadPortBackfeed > 0
+        ? snapshot.targetGrid + snapshot.homeLoad
+        : snapshot.targetGrid + snapshot.homeLoad + loadGridSupplyTarget;
+    }
+
+    function pvBypassCoversGridDemand(snapshot, effectiveLoadPort) {
+      if (snapshot.fullBatteryMode !== "follow_pv" || !snapshot.fullChargeHold) {
+        return false;
+      }
+
+      const positiveLoadPort = Math.max(effectiveLoadPort, 0);
+      const loadPortBackfeed = Math.max(-effectiveLoadPort, 0);
+      const pvAfterLoadPort = Math.max(snapshot.pvPower - positiveLoadPort, 0);
+      const bypassGridAvailable = Math.min(snapshot.maxOnGridOutput, pvAfterLoadPort + loadPortBackfeed);
+      const requiredGridOutput = Math.max(gridDemandForZeroFeed(snapshot, effectiveLoadPort), 0);
+      return requiredGridOutput <= bypassGridAvailable;
+    }
+
+    function simulatePorts(snapshot) {
+      const effectiveLoadPort = effectiveLoadPortPower(snapshot);
+      const positiveLoadPort = Math.max(effectiveLoadPort, 0);
+      const loadPortBackfeed = Math.max(-effectiveLoadPort, 0);
+
+      const rawGridCommand = clamp(state.gs, -params.maxGridInputW, snapshot.maxOnGridOutput);
+      const pvAvailable = snapshot.pvPower;
+
+      const batteryCanCharge = !snapshot.fullChargeHold;
+      const batteryCanDischarge = !snapshot.lowDischargeHold;
+      const batteryChargeCapacity = batteryCanCharge ? params.maxChargeW : 0;
+      const acChargeCapacity = batteryCanCharge ? Math.min(snapshot.acChargeLimit, batteryChargeCapacity) : 0;
+      const batteryDischargeCapacity = batteryCanDischarge ? params.inverterRatedW : 0;
+      const bypassActive = snapshot.fullBatteryMode === "follow_pv" && snapshot.fullChargeHold;
+      const bypassOnly = pvBypassCoversGridDemand(snapshot, effectiveLoadPort);
+      const needsGridAbsorption = snapshot.targetGrid + snapshot.homeLoad < 0;
+      const gridChargingDisabled = !batteryCanCharge
+        || snapshot.acChargeLimit <= 0
+        || (loadPortBackfeed > 0 && !needsGridAbsorption);
+      const gridCommand = gridChargingDisabled && rawGridCommand < 0 ? 0 : rawGridCommand;
+
+      const totalInverterLimit = Math.min(state.is, params.inverterRatedW);
+      const hardwareOutputLimit = bypassActive ? params.inverterRatedW : totalInverterLimit;
+      const loadPortFromInverter = Math.min(positiveLoadPort, hardwareOutputLimit);
+      const loadPortGridSupply = Math.max(positiveLoadPort - loadPortFromInverter, 0);
+      const remainingInverterOutput = Math.max(hardwareOutputLimit - loadPortFromInverter, 0);
+      const positiveGsOutput = bypassOnly ? 0 : Math.max(gridCommand, 0);
+      const pvBypassTotal = bypassActive ? Math.min(pvAvailable, hardwareOutputLimit) : 0;
+      const pvBypassToLoad = Math.min(pvBypassTotal, loadPortFromInverter);
+      const pvBypassAfterLoad = Math.max(pvBypassTotal - pvBypassToLoad, 0);
+      const bypassGridAvailable = bypassActive ? pvBypassAfterLoad + loadPortBackfeed : 0;
+      const desiredGridOutput = Math.min(
+        snapshot.maxOnGridOutput,
+        bypassActive ? Math.max(positiveGsOutput, bypassGridAvailable) : positiveGsOutput
+      );
+      const loadBackfeedToGrid = Math.min(loadPortBackfeed, desiredGridOutput);
+      const gridAfterLoadBackfeed = Math.max(desiredGridOutput - loadBackfeedToGrid, 0);
+      const pvBypassToGrid = Math.min(pvBypassAfterLoad, gridAfterLoadBackfeed, remainingInverterOutput);
+      const gridAfterBypass = Math.max(gridAfterLoadBackfeed - pvBypassToGrid, 0);
+      const gsDcToGrid = Math.min(positiveGsOutput, gridAfterBypass, Math.max(remainingInverterOutput - pvBypassToGrid, 0));
+
+      const gridChargeRequest = Math.max(-gridCommand, 0);
+      const gridChargeAccepted = Math.min(gridChargeRequest, acChargeCapacity);
+      const loadBackfeedAfterGrid = Math.max(loadPortBackfeed - loadBackfeedToGrid, 0);
+      const chargeCapacityAfterGrid = Math.max(acChargeCapacity - gridChargeAccepted, 0);
+      const loadBackfeedChargeAccepted = Math.min(loadBackfeedAfterGrid, chargeCapacityAfterGrid);
+      const rejectedLoadBackfeed = Math.max(loadBackfeedAfterGrid - loadBackfeedChargeAccepted, 0);
+      const acChargeAccepted = gridChargeAccepted + loadBackfeedChargeAccepted;
+      const gridPortOutput = gridCommand < 0
+        ? -gridChargeAccepted
+        : loadBackfeedToGrid + pvBypassToGrid + gsDcToGrid;
+
+      const dcOutputDemand = Math.max(loadPortFromInverter + pvBypassToGrid + gsDcToGrid, 0);
+      const pvBypassOutput = pvBypassToLoad + pvBypassToGrid;
+      const pvOutputDemand = Math.max(dcOutputDemand - pvBypassOutput, 0);
+      const pvToOutput = Math.min(Math.max(pvAvailable - pvBypassOutput, 0), pvOutputDemand);
+      const outputDeficit = Math.max(dcOutputDemand - pvBypassOutput - pvToOutput, 0);
+      const batteryDischarge = Math.min(outputDeficit, batteryDischargeCapacity);
+      const outputShortage = Math.max(outputDeficit - batteryDischarge, 0);
+      const remainingChargeCapacity = Math.max(batteryChargeCapacity - acChargeAccepted, 0);
+      const pvSurplus = Math.max(pvAvailable - pvBypassOutput - pvToOutput, 0);
+      const pvToBattery = Math.min(pvSurplus, remainingChargeCapacity);
+      const mpptInputPower = pvBypassOutput + pvToOutput + pvToBattery;
+      const pvCurtailed = Math.max(pvAvailable - mpptInputPower, 0);
+
+      const batteryCharge = acChargeAccepted + pvToBattery;
+      const batteryPower = batteryCharge - batteryDischarge;
+      const meterPower = gridPortOutput - snapshot.homeLoad - loadPortGridSupply;
+      const balanceGap = rejectedLoadBackfeed + outputShortage;
+      const totalInputPower = mpptInputPower + Math.max(-gridPortOutput, 0) + loadBackfeedToGrid + loadBackfeedChargeAccepted;
+      const totalOutputPower = loadPortFromInverter + Math.max(gridPortOutput, 0) + loadPortGridSupply;
+      const inverterOutput = loadPortFromInverter + pvBypassToGrid + gsDcToGrid;
+
+      return {
+        positiveLoadPort,
+        effectiveLoadPort,
+        gridCommand,
+        bypassActive,
+        bypassOnly,
+        hardwareOutputLimit,
+        pvBypassToLoad,
+        pvBypassOutput,
+        pvToOutput,
+        pvToBattery,
+        gsDcToGrid,
+        gridChargeAccepted,
+        hardwareGridDemand: desiredGridOutput,
+        controlledLoadPortOutput: loadPortFromInverter,
+        loadPortGridSupply,
+        loadPortBackfeed,
+        pvBypassToGrid,
+        loadBackfeedToGrid,
+        loadBackfeedChargeAccepted,
+        rejectedLoadBackfeed,
+        inverterOutput,
+        loadPortFromInverter,
+        gridPortOutput,
+        acChargePower: batteryCharge,
+        batteryCharge,
+        acChargeAccepted,
+        batteryDischarge,
+        outputShortage,
+        mpptInputPower,
+        pvUsed: mpptInputPower,
+        pvCurtailed,
+        batteryPower,
+        meterPower,
+        totalInputPower,
+        totalOutputPower,
+        balanceGap
+      };
+    }
+
+    function computeController(snapshot, ports, write = false) {
+      const targetGrid = snapshot.targetGrid;
+      const error = ports.meterPower - targetGrid;
+      const absOverallError = Math.abs(error);
+
+      const loadPortPowerForControl = ports.effectiveLoadPort;
+      const positiveLoadPort = Math.max(loadPortPowerForControl, 0);
+      const loadPortBackfeeding = ports.loadPortBackfeed > 0;
+      const loadAbsorbingAvailable = positiveLoadPort > 0;
+      const controlledByIs = ports.loadPortFromInverter;
+      const loadGridSupplyTarget = loadAbsorbingAvailable
+        ? clamp(targetGrid - snapshot.homeLoad, 0, positiveLoadPort)
+        : 0;
+      const desiredControlled = loadAbsorbingAvailable
+        ? positiveLoadPort - loadGridSupplyTarget
+        : 0;
+
+      let gsMin = -snapshot.acChargeLimit;
+      let gsMax = snapshot.maxOnGridOutput;
+      const chargeBlocked = snapshot.fullChargeHold;
+      const dischargeBlocked = snapshot.lowDischargeHold;
+
+      const needsGridAbsorption = targetGrid + snapshot.homeLoad < 0;
+
+      if (loadPortBackfeeding && !needsGridAbsorption) {
+        gsMin = Math.max(gsMin, 0);
+      }
+
+      if (chargeBlocked) {
+        gsMin = Math.max(gsMin, 0);
+      }
+
+      if (dischargeBlocked) {
+        gsMax = Math.min(gsMax, 0);
+      }
+
+      if (ports.bypassOnly) {
+        gsMin = 0;
+        gsMax = 0;
+      }
+
+      const rawTargetGs = gridDemandForZeroFeed(snapshot, loadPortPowerForControl);
+      // IS is the inverter total output ceiling. Hardware feeds the load port first,
+      // so the controller must reserve enough IS for both load-port output and GP.
+      const rawTargetIs = desiredControlled + Math.max(rawTargetGs, 0);
+      let targetGs = rawTargetGs;
+      let targetIs = rawTargetIs;
+
+      if (dischargeBlocked) {
+        targetIs = Math.min(targetIs, snapshot.pvPower);
+      }
+
+      if (ports.bypassOnly) {
+        targetGs = 0;
+        targetIs = state.is;
+      }
+
+      targetGs = clamp(targetGs, gsMin, gsMax);
+      targetIs = clamp(targetIs, 0, params.inverterRatedW);
+
+      const isCorrection = targetIs - state.is;
+      const gsError = targetGs - state.gs;
+      const controlMagnitude = Math.max(absOverallError, Math.abs(isCorrection), Math.abs(gsError));
+      const requiredInterval = getInterval(controlMagnitude);
+      const maxStep = getMaxStep(controlMagnitude);
+      let nextIs = roundTo(targetIs, params.isResolutionW);
+      nextIs = clamp(nextIs, 0, params.inverterRatedW);
+
+      const delta = clamp(gsError * params.gain, -maxStep, maxStep);
+      let nextGs = roundTo(state.gs + delta, params.gsResolutionW);
+      nextGs = clamp(nextGs, gsMin, gsMax);
+
+      const canWriteIs = !ports.bypassOnly
+        && (state.tick - state.lastIsWriteTick) >= requiredInterval
+        && Math.abs(nextIs - state.is) >= params.isResolutionW;
+      const canWriteGs = (state.tick - state.lastGsWriteTick) >= requiredInterval && nextGs !== state.gs;
+
+      if (write) {
+        if (canWriteIs) {
+          const old = state.is;
+          state.is = nextIs;
+          state.lastIsWriteTick = state.tick;
+          pushLog("写入 IS", `IS ${fmt(old)} -> ${fmt(state.is)}，按拓扑目标输出 ${fmt(targetIs)} 调整`);
+        }
+
+        if (canWriteGs) {
+          const old = state.gs;
+          state.gs = nextGs;
+          state.lastGsWriteTick = state.tick;
+          pushLog("写入 GS", `GS ${fmt(old)} -> ${fmt(state.gs)}，目标 ${fmt(targetGs)}`);
+        }
+
+        if (!canWriteIs && !canWriteGs) {
+          pushLog("本轮保持", `电表误差 ${fmt(error)}，目标 IS ${fmt(targetIs)} / GS ${fmt(targetGs)}，未到间隔或无需写入`);
+        }
+      }
+
+      return {
+        error,
+        absOverallError,
+        requiredInterval,
+        loadAbsorbingAvailable,
+        controlledByIs,
+        desiredControlled,
+        nextIs,
+        canWriteIs,
+        isCorrection,
+        gsError,
+        gsMin,
+        gsMax,
+        maxStep,
+        delta,
+        targetIs,
+        targetGs,
+        rawTargetIs,
+        rawTargetGs,
+        loadGridSupplyTarget,
+        nextGs,
+        canWriteGs,
+        chargeBlocked,
+        dischargeBlocked,
+        loadPortBackfeeding,
+        needsGridAbsorption,
+        bypassOnly: ports.bypassOnly
+      };
+    }
+
+    function snapshot() {
+      return {
+        deviceType: controls.deviceType.value,
+        modelGridOutputLimit: deviceMaxOutput(),
+        maxOnGridOutput: effectiveGridOutputLimit(),
+        userGridLimit: inputNumber("userGridLimit"),
+        homeLoad: inputNumber("homeLoad"),
+        loadPortPower: inputNumber("loadPortPower"),
+        pvPower: inputNumber("pvPower"),
+        soc: inputNumber("soc"),
+        socLow: inputNumber("socLow"),
+        socHigh: inputNumber("socHigh"),
+        socHys: inputNumber("socHys"),
+        fullChargeHold: state.fullChargeHold,
+        lowDischargeHold: state.lowDischargeHold,
+        targetGrid: inputNumber("targetGrid"),
+        fullBatteryMode: controls.fullBatteryMode.value,
+        acChargeLimit: inputNumber("acChargeLimit")
+      };
+    }
+
+    function updateSocHolds(snapshot) {
+      let changed = false;
+
+      if (snapshot.soc >= snapshot.socHigh && !state.fullChargeHold) {
+        state.fullChargeHold = true;
+        changed = true;
+        pushLog("进入满电保持", `SOC ${snapshot.soc}% 已到上限 ${snapshot.socHigh}%，禁止继续充电，直到低于 ${snapshot.socHigh - snapshot.socHys}%`);
+      } else if (snapshot.soc <= snapshot.socHigh - snapshot.socHys && state.fullChargeHold) {
+        state.fullChargeHold = false;
+        changed = true;
+        pushLog("退出满电保持", `SOC ${snapshot.soc}% 已低于上限回差，恢复允许充电`);
+      }
+
+      if (snapshot.soc <= snapshot.socLow && !state.lowDischargeHold) {
+        state.lowDischargeHold = true;
+        changed = true;
+        pushLog("进入下限保持", `SOC ${snapshot.soc}% 已到下限 ${snapshot.socLow}%，禁止继续放电，直到高于 ${snapshot.socLow + snapshot.socHys}%`);
+      } else if (snapshot.soc >= snapshot.socLow + snapshot.socHys && state.lowDischargeHold) {
+        state.lowDischargeHold = false;
+        changed = true;
+        pushLog("退出下限保持", `SOC ${snapshot.soc}% 已高于下限回差，恢复允许放电`);
+      }
+
+      return changed;
+    }
+
+    function updateHardwareProtection(snapshot, ports) {
+      if (!state.loadPortConnected && state.tick >= state.loadPortReconnectTick) {
+        state.loadPortConnected = true;
+        pushLog("负载口自动恢复", "3 小时恢复等待结束，重新接入负载口；如果微逆仍超过可消纳通道，会再次断开。");
+        return true;
+      }
+
+      if (state.loadPortConnected && ports.rejectedLoadBackfeed > 0) {
+        state.loadPortConnected = false;
+        state.loadPortReconnectTick = state.tick + params.loadPortReconnectSeconds;
+        pushLog("负载口硬件保护断开", `负载口微逆剩余 ${fmt(ports.rejectedLoadBackfeed)} 无法被 GS/PV bypass 通道或电池吸收，断开负载口；可手动恢复，也会在约 3 小时后自动恢复。`);
+        return true;
+      }
+
+      return false;
+    }
+
+    function setText(id, text, valueForClass = null) {
+      const el = $(id);
+      el.textContent = text;
+      if (valueForClass !== null) {
+        el.classList.remove("positive", "negative", "warn", "danger");
+        const cls = signClass(valueForClass);
+        if (cls) el.classList.add(cls);
+      }
+    }
+
+    function setBar(id, value, max = 2400) {
+      const el = $(id);
+      const abs = Math.min(Math.abs(value), max);
+      const width = Math.max(4, (abs / max) * 50);
+      if (value >= 0) {
+        el.style.marginLeft = "50%";
+        el.style.width = `${width}%`;
+        el.style.background = value === 0 ? "#d9d0c1" : "var(--green)";
+      } else {
+        el.style.marginLeft = `${50 - width}%`;
+        el.style.width = `${width}%`;
+        el.style.background = "var(--blue)";
+      }
+    }
+
+    function setFlow(id, value, max = 2400, color = "var(--green)") {
+      const el = $(id);
+      const width = Math.max(value === 0 ? 0 : 4, Math.min(Math.abs(value), max) / max * 100);
+      el.style.width = `${width}%`;
+      el.style.background = color;
+    }
+
+    function setMapFlow(id, labelId, value, color = "green", max = 2400) {
+      const flow = $(id);
+      const label = $(labelId);
+      const amount = Math.max(Math.abs(value), 0);
+      if (amount < 1) {
+        flow.style.opacity = "0";
+        flow.style.strokeWidth = "0";
+        label.textContent = "";
+        return;
+      }
+
+      flow.style.opacity = "0.9";
+      flow.style.strokeWidth = `${Math.max(3, Math.min(14, 2 + amount / max * 12))}`;
+      label.textContent = fmt(amount);
+      flow.setAttribute("marker-end", `url(#arrow${color[0].toUpperCase()}${color.slice(1)})`);
+    }
+
+    function setMapText(id, text, valueForClass = null) {
+      const el = $(id);
+      el.textContent = text;
+      if (valueForClass !== null) {
+        el.classList.remove("positive", "negative", "warn", "danger");
+        const cls = signClass(valueForClass);
+        if (cls) el.classList.add(cls);
+      }
+    }
+
+    function renderPowerMap(snapshot, ports) {
+      const batteryToInverter = ports.batteryDischarge;
+      const inverterToBattery = ports.batteryCharge;
+      const inverterToIs = ports.inverterOutput;
+      const isToGridPort = Math.max(ports.gridPortOutput, 0);
+      const gridToGridPort = Math.max(-ports.gridPortOutput, 0);
+      const isToLoadPort = ports.loadPortFromInverter;
+      const loadPortToIs = ports.loadPortBackfeed;
+      const limitedOrRejected = ports.pvCurtailed + ports.balanceGap;
+
+      setMapText("mapBattery", fmt(ports.batteryPower), ports.batteryPower);
+      setMapText("mapInverter", fmt(ports.inverterOutput), ports.inverterOutput);
+      $("mapPvInfo").textContent = `PV ${fmt(ports.mpptInputPower)} / 限发 ${fmt(ports.pvCurtailed)}`;
+      $("mapBatteryNote").textContent = ports.batteryPower > 0
+        ? "PB 正：电池充电"
+        : ports.batteryPower < 0
+          ? "PB 负：电池放电"
+          : "PB 0：电池无净功率";
+      setMapText("mapIs", fmt(state.is), state.is);
+      setMapText("mapGridPort", fmt(ports.gridPortOutput), ports.gridPortOutput);
+      $("mapGsNote").textContent = `GS ${fmt(state.gs)}`;
+      setMapText("mapLoadPort", fmt(ports.effectiveLoadPort), ports.effectiveLoadPort);
+      $("mapLoadPortState").textContent = state.loadPortConnected ? "connected" : "disconnected";
+      setMapText("mapGrid", fmt(ports.gridPortOutput), ports.gridPortOutput);
+      $("mapMeterNote").textContent = `电表 ${fmt(ports.meterPower)}`;
+      setMapText("mapReject", fmt(limitedOrRejected), limitedOrRejected);
+
+      setMapFlow("mapFlowBatteryToInverter", "mapLabelBatteryToInverter", batteryToInverter, "blue", 2400);
+      setMapFlow("mapFlowInverterToBattery", "mapLabelInverterToBattery", inverterToBattery, "amber", 2400);
+      setMapFlow("mapFlowInverterToIs", "mapLabelInverterToIs", inverterToIs, "green", 2400);
+      setMapFlow("mapFlowIsToGridPort", "mapLabelIsToGridPort", isToGridPort, "blue", 2400);
+      setMapFlow("mapFlowIsToLoadPort", "mapLabelIsToLoadPort", isToLoadPort, "blue", 2400);
+      setMapFlow("mapFlowLoadPortToIs", "mapLabelLoadPortToIs", loadPortToIs, "blue", 2400);
+      setMapFlow("mapFlowGridPortToGrid", "mapLabelGridPortToGrid", isToGridPort, "blue", 2400);
+      setMapFlow("mapFlowGridToGridPort", "mapLabelGridToGridPort", gridToGridPort, "amber", 2400);
+      setMapFlow("mapFlowPvLimited", "mapLabelPvLimited", ports.pvCurtailed, "red", 3200);
+      setMapFlow("mapFlowReject", "mapLabelReject", ports.balanceGap, "red", 2400);
+
+      $("powerMapStatus").textContent = ports.bypassActive
+        ? `满电跟随光伏：${ports.bypassOnly ? "纯 bypass" : "bypass + GS 补缺口"}，GS=${fmt(state.gs)}，GP=${fmt(ports.gridPortOutput)}，PV 先供离网口 ${fmt(ports.pvBypassToLoad)}，剩余到并网口 ${fmt(ports.pvBypassToGrid)}`
+        : `普通闭环：GS=${fmt(state.gs)}，IS=${fmt(state.is)}，GP=${fmt(ports.gridPortOutput)}，LP=${fmt(ports.effectiveLoadPort)}，电表=${fmt(ports.meterPower)}`;
+    }
+
+    function modelState(snapshot, ports) {
+      const pk = snapshot.deviceType === "500" ? 1 : 2;
+      const pv = Math.round(ports.mpptInputPower);
+      const pv1 = Math.round(pv / 4);
+      const pv2 = Math.round(pv / 4);
+      const pv3 = Math.round(pv / 4);
+      const pv4 = pv - pv1 - pv2 - pv3;
+      const voltage = pv > 0 ? 36 : 0;
+      const current = voltage > 0 ? pv / 4 / voltage : 0;
+
+      return [
+        ["PK", pk, "-", pk === 1 ? "500 Standard，最大并网输出 800W" : "500 Pro，最大并网输出 2400W"],
+        ["PV", pv, "W", "MPPT 实际总输入功率"],
+        ["PV1", pv1, "W", "MPPT 1 实际输入功率"],
+        ["PV2", pv2, "W", "MPPT 2 实际输入功率"],
+        ["PV3", pv3, "W", "MPPT 3 实际输入功率"],
+        ["PV4", pv4, "W", "MPPT 4 实际输入功率"],
+        ["VP1..VP4", voltage.toFixed(1), "V", "模拟 MPPT 电压"],
+        ["II1..II4", current.toFixed(2), "A", "按 PV/电压反推的模拟电流"],
+        ["GP", Math.round(ports.gridPortOutput), "W", "并网口功率，正=输出，负=输入"],
+        ["LP", Math.round(ports.effectiveLoadPort), "W", state.loadPortConnected ? "负载口功率，负=负载口回灌" : "负载口保护断开，物模型按 0 处理"],
+        ["PB", Math.round(ports.batteryPower), "W", "电池功率，正=充电，负=放电"],
+        ["IW", Math.round(ports.totalInputPower), "W", "设备总输入功率"],
+        ["OP", Math.round(ports.totalOutputPower), "W", "设备总输出功率"],
+        ["LP->GP", Math.round(ports.loadBackfeedToGrid), "W", "模拟项：负载口回灌中被并网口输出消纳的部分"],
+        ["LP->PB", Math.round(ports.loadBackfeedChargeAccepted), "W", "模拟项：负载口回灌中进入电池的部分"],
+        ["LP Reject", Math.round(ports.rejectedLoadBackfeed), "W", "模拟项：满电/无输出通道时不可吸收的负载口回流"],
+        ["PV Bypass", Math.round(ports.pvBypassToLoad + ports.pvBypassToGrid), "W", "模拟项：满电跟随光伏时进入逆变 AC 输出的 PV bypass 功率；先供负载，剩余才到并网口"],
+        ["SC", Math.round(snapshot.soc), "%", "系统 SOC"],
+        ["SC0", Math.round(snapshot.soc), "%", "Head storage SOC"],
+        ["BN / ON", "1 / 1", "-", "模拟 1 个在线电池包"],
+        ["GS", Math.round(state.gs), "W", "当前并网口功率设定值；PV bypass 时可为 0，但 GP 由硬件输出变化"],
+        ["IS", Math.round(state.is), "W", "当前逆变输出上限"],
+        ["SA / SI", `${snapshot.socHigh} / ${snapshot.socLow}`, "%", "SOC 上限 / 下限"],
+        ["MS", 0, "-", "未使用 MM/MD，本蓝图依赖外部 HA 电表"]
+      ];
+    }
+
+    function render() {
+      let snap = snapshot();
+      if (updateSocHolds(snap)) {
+        snap = snapshot();
+      }
+      const ports = simulatePorts(snap);
+      const controller = computeController(snap, ports, false);
+
+      $("homeLoadValue").textContent = fmt(snap.homeLoad);
+      $("loadPortPowerValue").textContent = state.loadPortConnected
+        ? fmt(snap.loadPortPower)
+        : `${fmt(snap.loadPortPower)} / 已断开`;
+      $("pvPowerValue").textContent = fmt(snap.pvPower);
+      $("socValue").textContent = `${snap.soc}%`;
+      $("socLowValue").textContent = `${snap.socLow}%`;
+      $("socHighValue").textContent = `${snap.socHigh}%`;
+      $("socHysValue").textContent = `${snap.socHys}%`;
+      $("targetGridValue").textContent = fmt(snap.targetGrid);
+      $("acChargeLimitValue").textContent = fmt(snap.acChargeLimit);
+      $("userGridLimitValue").textContent = fmt(snap.userGridLimit);
+      $("deviceLimit").textContent = `${snap.modelGridOutputLimit}W / 实际${snap.maxOnGridOutput}W`;
+      $("deviceModel").textContent = snap.deviceType === "500" ? "500 model" : "500 Pro model";
+      $("socScreen").textContent = snap.soc;
+      $("tickCount").textContent = state.tick;
+
+      setText("meterPower", fmt(ports.meterPower), ports.meterPower);
+      setText("gsValue", fmt(state.gs), state.gs);
+      setText("isValue", fmt(state.is), state.is);
+      setText("batteryPower", fmt(ports.batteryPower), ports.batteryPower);
+
+      setText("pvPort", fmt(ports.mpptInputPower), ports.mpptInputPower);
+      setText("lpPort", fmt(ports.effectiveLoadPort), ports.effectiveLoadPort);
+      setText("gridPort", fmt(ports.gridPortOutput), ports.gridPortOutput);
+      setText("housePort", fmt(snap.homeLoad), snap.homeLoad);
+      setBar("pvBar", ports.mpptInputPower, 3200);
+      setBar("lpBar", ports.effectiveLoadPort, 2400);
+      setBar("gridBar", ports.gridPortOutput, 2400);
+      setBar("houseBar", snap.homeLoad, 4800);
+
+      $("screenGs").textContent = fmt(state.gs);
+      $("screenIs").textContent = fmt(state.is);
+      $("screenInverter").textContent = fmt(ports.inverterOutput);
+      $("screenGrid").textContent = fmt(ports.gridPortOutput);
+      $("screenBattery").textContent = fmt(ports.batteryPower);
+      $("pvUsed").textContent = fmt(ports.pvUsed);
+      $("pvCurtail").textContent = fmt(ports.pvCurtailed);
+      $("balanceGap").textContent = fmt(ports.balanceGap);
+
+      setText("pvAvailableNode", fmt(snap.pvPower), snap.pvPower);
+      setText("mpptNode", fmt(ports.mpptInputPower), ports.mpptInputPower);
+      setText("pvLimitedNode", fmt(ports.pvCurtailed), ports.pvCurtailed);
+      setText("dcBusNode", fmt(ports.balanceGap), ports.balanceGap);
+      $("dcBusHint").textContent = ports.balanceGap > 0
+        ? "存在不可吸收回流或输出缺口，真实设备需要限功率/保护/等待下一轮 GS 调整。"
+        : "母线平衡，当前可控能量都有去向。";
+      setText("acOutputNode", fmt(ports.inverterOutput), ports.inverterOutput);
+      setText("loadBackfeedNode", fmt(ports.loadPortBackfeed), -ports.loadPortBackfeed);
+      setText("loadProtectNode", state.loadPortConnected ? "已连接" : "已断开", state.loadPortConnected ? 1 : -1);
+      const reconnectRemain = Math.max(state.loadPortReconnectTick - state.tick, 0);
+      $("loadProtectHint").textContent = state.loadPortConnected
+        ? "硬件已接入负载口。微逆回灌超过当前 GS/GP 可消纳通道时，会断开负载口。"
+        : `硬件保护中，物模型 LP 按 0 处理；可点击“手动恢复负载口”，也会在 ${reconnectRemain}s 后尝试自动恢复。`;
+      $("loadPortProtectionHint").textContent = state.loadPortConnected
+        ? "LP 为负时代表负载口回灌；若回灌超过当前正向 GS/GP 可消纳通道，会触发断开保护。断开后可手动恢复。"
+        : `负载口已硬件断开，当前物模型 LP=0；可手动恢复，或 ${reconnectRemain}s 后自动恢复。`;
+      setText("gridConverterNode", fmt(ports.gridPortOutput), ports.gridPortOutput);
+      renderPowerMap(snap, ports);
+      setFlow("flowMppt", ports.mpptInputPower, 3200, "var(--green)");
+      setFlow("flowInv", ports.inverterOutput, 2400, "var(--blue)");
+      setFlow("flowBattery", ports.batteryPower, 2400, ports.batteryPower >= 0 ? "var(--green)" : "var(--blue)");
+      setFlow("flowAcCharge", ports.acChargeAccepted, 2400, "var(--amber)");
+      setFlow("flowLoadToGrid", ports.loadBackfeedToGrid, 2400, "var(--blue)");
+      setFlow("flowReject", ports.balanceGap, 2400, "var(--red)");
+      $("flowMpptValue").textContent = fmt(ports.mpptInputPower);
+      $("flowInvValue").textContent = fmt(ports.inverterOutput);
+      $("flowBatteryValue").textContent = fmt(ports.batteryPower);
+      $("flowAcChargeValue").textContent = fmt(ports.acChargeAccepted);
+      $("flowLoadToGridValue").textContent = fmt(ports.loadBackfeedToGrid);
+      $("flowRejectValue").textContent = fmt(ports.balanceGap);
+
+      $("modelGrid").innerHTML = modelState(snap, ports).map(([field, value, unit, desc]) => `
+        <div class="model-field">
+          <code>${field}</code>
+          <strong>${value}${unit && unit !== "-" ? unit : ""}</strong>
+          <span>${desc}</span>
+        </div>
+      `).join("");
+
+      const rows = [
+        ["设备最大并网输出", fmt(snap.maxOnGridOutput)],
+        ["设备型号硬上限", fmt(snap.modelGridOutputLimit)],
+        ["用户并网输出上限", fmt(snap.userGridLimit)],
+        ["逆变额定功率", fmt(params.inverterRatedW)],
+        ["最大充电/并网输入", fmt(params.maxChargeW)],
+        ["逆变总输出上限", fmt(Math.min(state.is, params.inverterRatedW))],
+        ["目标电表值", fmt(snap.targetGrid)],
+        ["外部电表误差", fmt(controller.error)],
+        ["IS 中已给负载口的功率", fmt(controller.controlledByIs)],
+        ["负载口由市电补足目标", fmt(controller.loadGridSupplyTarget)],
+        ["GS 原始目标", fmt(controller.rawTargetGs)],
+        ["IS 原始目标", fmt(controller.rawTargetIs)],
+        ["IS 目标总输出", fmt(controller.targetIs)],
+        ["负载口市电补电", fmt(ports.loadPortGridSupply)],
+        ["负载口微逆回灌", fmt(ports.loadPortBackfeed)],
+        ["负载口硬件状态", state.loadPortConnected ? "已连接" : `已断开，可手动恢复，${Math.max(state.loadPortReconnectTick - state.tick, 0)}s 后自动恢复`],
+        ["PV bypass 供负载", fmt(ports.pvBypassToLoad)],
+        ["PV bypass 到并网口", fmt(ports.pvBypassToGrid)],
+        ["PV bypass 是否激活", ports.bypassActive ? (ports.bypassOnly ? "是，纯 bypass，GS 固定为 0" : "是，混合态，bypass 不足时 GS 补缺口") : "否"],
+        ["满电保持状态", state.fullChargeHold ? "是" : "否"],
+        ["下限保持状态", state.lowDischargeHold ? "是" : "否"],
+        ["负载口回灌送并网口", fmt(ports.loadBackfeedToGrid)],
+        ["负载口回灌进电池", fmt(ports.loadBackfeedChargeAccepted)],
+        ["负载口不可吸收回流", fmt(ports.rejectedLoadBackfeed)],
+        ["GS DC 输出到 GP", fmt(ports.gsDcToGrid)],
+        ["逆变 AC 总输出", fmt(ports.inverterOutput)],
+        ["Load + GP 总输出", fmt(ports.loadPortFromInverter + Math.max(ports.gridPortOutput, 0))],
+        ["硬件目标总输出", fmt(ports.hardwareGridDemand)],
+        ["MPPT 实际吸收", fmt(ports.mpptInputPower)],
+        ["PV 限发/未吸收", fmt(ports.pvCurtailed)],
+        ["IS 目标可控负载", fmt(controller.desiredControlled)],
+        ["本轮是否准备写 IS", controller.canWriteIs ? "是" : "否"],
+        ["IS 预计修正量", fmt(controller.isCorrection)],
+        ["GS 剩余误差", fmt(controller.gsError)],
+        ["GS 下限", fmt(controller.gsMin)],
+        ["GS 上限", fmt(controller.gsMax)],
+        ["SOC 禁止充电", controller.chargeBlocked ? "是" : "否"],
+        ["SOC 禁止放电", controller.dischargeBlocked ? "是" : "否"],
+        ["写入间隔", `${controller.requiredInterval}s`],
+        ["单次最大步长", fmt(controller.maxStep)],
+        ["下一步 IS", fmt(controller.nextIs)],
+        ["下一步 GS", fmt(controller.nextGs)]
+      ];
+
+      $("logicTable").innerHTML = rows.map(([key, value]) => `
+        <tr>
+          <td>${key}</td>
+          <td>${value}</td>
+        </tr>
+      `).join("");
+
+      $("events").innerHTML = state.logs.map((item) => `
+        <div class="event">
+          <time>${item.time}</time>
+              <div><strong>${item.title}</strong>${item.body}</div>
+        </div>
+      `).join("");
+    }
+
+    function tick() {
+      if (!state.running) return;
+      state.tick += 1;
+      let snap = snapshot();
+      if (updateSocHolds(snap)) {
+        snap = snapshot();
+      }
+      let ports = simulatePorts(snap);
+      if (updateHardwareProtection(snap, ports)) {
+        ports = simulatePorts(snap);
+      }
+      computeController(snap, ports, true);
+      render();
+    }
+
+    function setScenario(values) {
+      state.loadPortConnected = true;
+      state.loadPortReconnectTick = 0;
+      state.fullChargeHold = false;
+      state.lowDischargeHold = false;
+      Object.entries(values).forEach(([key, value]) => {
+        controls[key].value = value;
+      });
+      updateSocHolds(snapshot());
+      render();
+    }
+
+    Object.values(controls).forEach((control) => {
+      control.addEventListener("input", render);
+      control.addEventListener("change", render);
+    });
+
+    $("toggleRun").addEventListener("click", () => {
+      state.running = !state.running;
+      $("toggleRun").textContent = state.running ? "暂停" : "继续";
+      $("runState").textContent = state.running ? "运行中，每 1 秒调整一次" : "已暂停，可手动调整工况";
+      render();
+    });
+
+    $("scenarioBase").addEventListener("click", () => {
+      state.gs = 0;
+      state.is = 2400;
+      setScenario({ homeLoad: -200, loadPortPower: 400, pvPower: 1200, soc: 60 });
+      pushLog("切换场景", "负载口 400W，家庭侧等效馈电 200W，预期 IS 收敛到约 200W");
+      render();
+    });
+
+    $("scenarioMicro").addEventListener("click", () => {
+      state.gs = 0;
+      state.is = 2400;
+      setScenario({ homeLoad: -200, loadPortPower: -300, pvPower: 1600, soc: 95, socHigh: 90 });
+      pushLog("切换场景", "负载口微逆回灌，LP 为负，IS 不参与修正，GS 处理剩余误差");
+      render();
+    });
+
+    $("restoreLoadPort").addEventListener("click", () => {
+      state.loadPortConnected = true;
+      state.loadPortReconnectTick = 0;
+      pushLog("手动恢复负载口", "已重新接入负载口；如果微逆仍超过当前可消纳通道，下一轮会再次触发硬件断开。");
+      render();
+    });
+
+    $("scenarioCharge").addEventListener("click", () => {
+      state.gs = -500;
+      state.is = 2400;
+      setScenario({ homeLoad: -700, loadPortPower: 400, pvPower: 1800, soc: 50 });
+      pushLog("切换场景", "市电充电叠加负载，先看 IS 是否能消化家庭馈电，再由 GS 补剩余");
+      render();
+    });
+
+    $("scenarioDischarge").addEventListener("click", () => {
+      state.gs = 500;
+      state.is = 200;
+      setScenario({ homeLoad: 700, loadPortPower: 400, pvPower: 300, soc: 50 });
+      pushLog("切换场景", "市电放电叠加负载，IS 优先上调到可带负载，再由 GS 补购电误差");
+      render();
+    });
+
+    pushLog("模拟器启动", "控制器已开始按 1 秒周期运行，默认使用 500 Pro 上限 2400W");
+    render();
+    window.setInterval(tick, 1000);
+  </script>
+</body>
+</html>
