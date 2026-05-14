@@ -260,17 +260,6 @@ blueprint:
         entity:
           domain: sensor
 
-    battery_power_sensor:
-      name: SunEnergyXT battery power sensor
-      description: >
-        Select "System Battery Power" (PB). Positive means battery charging and
-        negative means battery discharging. It is used to tolerate cases where
-        the device internal full/low-SOC state and the automation hold state are
-        temporarily different.
-      selector:
-        entity:
-          domain: sensor
-
     target_grid_power_w:
       name: Target grid power
       description: >
@@ -600,7 +589,6 @@ variables:
   load_entity: !input load_power_sensor
   gp_entity: !input grid_port_power_sensor
   pv_entity: !input pv_power_sensor
-  battery_entity: !input battery_power_sensor
   full_hold_entity: !input full_charge_hold_helper
   low_hold_entity: !input low_discharge_hold_helper
   full_battery_mode: !input full_battery_mode
@@ -684,9 +672,6 @@ condition:
       {{ states(pv_entity) not in ['unknown', 'unavailable', 'none', ''] }}
   - condition: template
     value_template: >-
-      {{ states(battery_entity) not in ['unknown', 'unavailable', 'none', ''] }}
-  - condition: template
-    value_template: >-
       {{ states(soc_entity) not in ['unknown', 'unavailable', 'none', ''] }}
   - condition: template
     value_template: >-
@@ -749,10 +734,6 @@ condition:
   - condition: template
     value_template: >-
       {% set age = as_timestamp(now()) - as_timestamp(states[pv_entity].last_updated, 0) %}
-      {{ age <= (max_meter_age_s | float(30)) }}
-  - condition: template
-    value_template: >-
-      {% set age = as_timestamp(now()) - as_timestamp(states[battery_entity].last_updated, 0) %}
       {{ age <= (max_meter_age_s | float(30)) }}
   - condition: template
     value_template: >-
@@ -835,9 +816,6 @@ action:
       has_pv: >-
         {{ pv_entity | string | length > 0
            and states(pv_entity) not in ['unknown', 'unavailable', 'none', ''] }}
-      has_battery: >-
-        {{ battery_entity | string | length > 0
-           and states(battery_entity) not in ['unknown', 'unavailable', 'none', ''] }}
 
   - variables:
       normalized_grid_w: >-
@@ -872,30 +850,17 @@ action:
         {% else %}
           {{ 0 }}
         {% endif %}
-      battery_power_w: >-
-        {% if has_battery | bool(false) %}
-          {{ states(battery_entity) | float(0) }}
-        {% else %}
-          {{ 0 }}
-        {% endif %}
 
   - variables:
       soc_hysteresis_value: "{{ [soc_hysteresis | float(2), 0] | max }}"
       current_full_hold_state: "{{ is_state(full_hold_entity, 'on') }}"
       current_low_hold_state: "{{ is_state(low_hold_entity, 'on') }}"
       state_mismatch_threshold_w: "{{ [small_error_w | float(30), 30] | max }}"
-      charge_rejected_by_device: >-
-        {% set threshold = state_mismatch_threshold_w | float(30) %}
-        {{ (current_gs_w | float(0)) < (-1 * threshold)
-           and (gp_power_w | float(0)) > (-1 * threshold)
-           and (battery_power_w | float(0)) <= threshold }}
       full_hold_state: >-
         {% set soc = soc_value | float(50) %}
         {% set upper = max_charge_soc | float(100) %}
         {% set release = upper - (soc_hysteresis_value | float(2)) %}
-        {% if charge_rejected_by_device | bool(false) %}
-          {{ true }}
-        {% elif soc >= upper %}
+        {% if soc >= upper %}
           {{ true }}
         {% elif soc <= release %}
           {{ false }}
@@ -1004,18 +969,7 @@ action:
         {% endif %}
 
   - variables:
-      discharge_rejected_by_device: >-
-        {% set threshold = state_mismatch_threshold_w | float(30) %}
-        {{ not (bypass_only | bool(false))
-           and (raw_is_target_w | float(0)) > ((pv_power_w | float(0)) + threshold)
-           and (battery_power_w | float(0)) >= (-1 * threshold)
-           and (normalized_grid_w | float(0)) < ((target_grid_power_w | float(0)) - threshold) }}
-      low_hold_state: >-
-        {% if discharge_rejected_by_device | bool(false) %}
-          {{ true }}
-        {% else %}
-          {{ low_hold_state_prelim | bool(false) }}
-        {% endif %}
+      low_hold_state: "{{ low_hold_state_prelim | bool(false) }}"
       charge_blocked_by_soc: >-
         {{ full_hold_state | bool(false) }}
       discharge_blocked_by_soc: >-

@@ -25,10 +25,11 @@
 | `SunEnergyXT load power sensor` | `System Load Port Power` | 一体机负载口实时功率，正数为负载消耗，负数为负载口回灌 |
 | `SunEnergyXT grid-port power sensor` | `System Grid Port Power` | 一体机并网口实时功率 |
 | `SunEnergyXT PV power sensor` | `PV Total Input Power` | 光伏实时输入功率 |
-| `SunEnergyXT battery power sensor` | `System Battery Power` / `PB` | 电池实时功率，正数为充电，负数为放电 |
 | `SunEnergyXT SOC sensor` | `System Battery Level` | 电池 SOC |
 
-不同 Home Assistant 语言或插件版本下，实体显示名称可能略有差异。原则上应选择同一台 SunEnergyXT 设备下面对应 `GS`、`IS`、`LP`、`GP`、`PV`、`PB`、`SOC` 的实体。
+不同 Home Assistant 语言或插件版本下，实体显示名称可能略有差异。原则上应选择同一台 SunEnergyXT 设备下面对应 `GS`、`IS`、`LP`、`GP`、`PV`、`SOC` 的实体。
+
+注意：原始本地 API 中可能存在 `PB` 电池功率字段，但当前 Home Assistant 插件公开的实体列表不包含 `System Battery Power` / `PB` 传感器。本蓝图不要求也不读取该实体。
 
 ### 1.2 确认外部电表实体
 
@@ -160,7 +161,6 @@ Auto from selected preset
 | `SunEnergyXT load power sensor` | `System Load Port Power` |
 | `SunEnergyXT grid-port power sensor` | `System Grid Port Power` |
 | `SunEnergyXT PV power sensor` | `PV Total Input Power` |
-| `SunEnergyXT battery power sensor` | `System Battery Power` / `PB` |
 | `SunEnergyXT SOC sensor` | `System Battery Level` |
 | `Full-charge hold helper` | 第 3 步创建的满电 Helper |
 | `Low-SOC hold helper` | 第 3 步创建的低 SOC Helper |
@@ -326,7 +326,7 @@ Follow PV after full
 | 外部电表实时功率 | 逐步接近 `Target grid power` |
 | `GS` | 会随外部电表误差上下调整 |
 | `IS` | 会根据负载口、并网口、满电策略和 SOC 限制调整 |
-| `PB` | 正数为充电，负数为放电 |
+| `PB` | 原始 API 电池功率字段；当前 HA 插件未暴露为可选实体，蓝图不依赖 |
 | `LP` | 正数为负载口消耗，负数为负载口回灌 |
 
 ### 10.3 检查满电和低 SOC helper

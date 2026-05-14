@@ -3,6 +3,11 @@
 This repository contains the Home Assistant blueprint package for SunEnergyXT
 500 / 500 Pro external-meter zero feed-in control.
 
+The blueprint is aligned to the currently exposed Home Assistant integration
+entities: `GS`, `IS`, `LP`, `GP`, `PV`, and `SC`. It does not require a
+`System Battery Power` / `PB` sensor because the current SunEnergyXT HA plugin
+does not expose that entity.
+
 ## Files
 
 - `blueprints/automation/sunenergyxt/zero_feed_in_external_meter.yaml`:

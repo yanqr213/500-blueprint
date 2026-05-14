@@ -6,8 +6,8 @@ flowchart TD
   B --> C{"所有必需数据有效且未超时"}
   C -- "否" --> Z["停止本轮，不写入"]
   C -- "是" --> D["按预设/手动符号统一电表：正=馈电，负=购电；必要时 kW 乘 1000 转 W"]
-  D --> E["读取 GS、IS、LP、GP、PV、PB、SOC 与两个 hold helper；更新自动化侧 hold"]
-  E --> F["用 PB/GP/外部电表做不同步兜底：设备拒绝充电则置满电保持，设备拒绝放电则置下限保持"]
+  D --> E["读取 GS、IS、LP、GP、PV、SOC 与两个 hold helper；更新自动化侧 hold"]
+  E --> F["按 SOC 上下限与回差更新满电保持和下限保持；当前 HA 插件未暴露 PB，不依赖 System Battery Power"]
   F --> G["解析 LP：正=负载消耗，负=微逆回灌"]
   G --> H["按 HTML simulatePorts 口径估算输出上限：满电跟随 PV 且自动化满电保持时按 2400W，否则 min(IS,2400W)"]
   H --> I["计算负载口市电补足：loadPortGridSupply=max(positiveLP-loadPortFromInverter,0)"]
