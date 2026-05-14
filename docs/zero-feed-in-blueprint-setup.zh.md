@@ -10,30 +10,32 @@
 
 ## 1. 准备工作
 
-### 1.1 确认一体机实体
+### 1.1 确认一体机设备
 
 进入 Home Assistant：
 
-`设置` -> `设备与服务` -> `实体`
+`设置` -> `设备与服务` -> `设备`
 
-确认 SunEnergyXT 一体机至少有以下实体：
+确认 SunEnergyXT 一体机设备存在，并且设备下至少有以下实体：
 
-| 蓝图配置项 | 需要选择的一体机实体 | 用途 |
+| 实体 | 用途 |
 | --- | --- | --- |
-| `SunEnergyXT GS number entity` | `System Grid Port Power Setpoint` | 并网口功率设定，蓝图主要控制目标 |
-| `SunEnergyXT IS number entity` | `System Max Inverter Power Setpoint` | 逆变器总输出上限 |
-| `SunEnergyXT load power sensor` | `System Load Port Power` | 一体机负载口实时功率，正数为负载消耗，负数为负载口回灌 |
-| `SunEnergyXT grid-port power sensor` | `System Grid Port Power` | 一体机并网口实时功率 |
-| `SunEnergyXT PV power sensor` | `PV Total Input Power` | 光伏实时输入功率 |
-| `SunEnergyXT SOC sensor` | `System Battery Level` | 电池 SOC |
+| `System Grid Port Power Setpoint` / `GS` | 并网口功率设定，蓝图主要控制目标 |
+| `System Max Inverter Power Setpoint` / `IS` | 逆变器总输出上限 |
+| `System Load Port Power` / `LP` | 一体机负载口实时功率，正数为负载消耗，负数为负载口回灌 |
+| `System Grid Port Power` / `GP` | 一体机并网口实时功率 |
+| `PV Total Input Power` / `PV` | 光伏实时输入功率 |
+| `System Battery Level` / `SC` | 电池 SOC |
 
-不同 Home Assistant 语言或插件版本下，实体显示名称可能略有差异。原则上应选择同一台 SunEnergyXT 设备下面对应 `GS`、`IS`、`LP`、`GP`、`PV`、`SOC` 的实体。
+蓝图创建自动化时只需要选择 `SunEnergyXT device`，会自动从该设备下绑定 `GS`、`IS`、`LP`、`GP`、`PV`、`SC`。不同 Home Assistant 语言或插件版本下，实体显示名称可能略有差异；如果自动绑定不准确，再展开 `Advanced entity overrides` 手动覆盖。
 
 注意：原始本地 API 中可能存在 `PB` 电池功率字段，但当前 Home Assistant 插件公开的实体列表不包含 `System Battery Power` / `PB` 传感器。本蓝图不要求也不读取该实体。
 
 ### 1.2 确认外部电表实体
 
-电表侧需要的是实时功率，不是累计电量。单位通常是 `W`，如果插件提供的是 `kW`，后面可以通过 `External meter power multiplier` 设置为 `1000` 转成 `W`。
+进入 Home Assistant 的设备页面，确认外部电表作为一个设备存在。蓝图创建自动化时只需要选择 `External meter device` 和 `External meter preset`，会按预设从该设备下自动寻找实时功率实体。
+
+电表侧需要的是实时功率，不是累计电量。单位通常是 `W`，如果插件提供的是 `kW`，可在折叠的 `Advanced meter settings` 中把 `External meter power multiplier` 设置为 `1000` 转成 `W`。
 
 本蓝图内部统一使用以下方向：
 
@@ -42,7 +44,7 @@
 | 正数 | 家庭向电网馈电 / 外送 |
 | 负数 | 家庭从电网购电 / 市电输入 |
 
-用户不需要自己把所有电表都改成这个方向，只需要在蓝图里选对电表预设和符号方向。
+用户不需要自己把所有电表都改成这个方向，只需要在蓝图里选对电表预设。符号方向默认自动判断；如果现场方向反了，再展开 `Advanced meter settings` 修改 `Meter sign convention`。
 
 ## 2. 导入蓝图
 
@@ -105,22 +107,32 @@
 
 ## 5. 配置外部电表
 
-### 5.1 选择电表预设
+### 5.1 选择设备和电表预设
+
+创建蓝图自动化时，主界面只需要填写：
+
+| 蓝图项 | 选择 |
+| --- | --- |
+| `SunEnergyXT device` | 选择同一台 SunEnergyXT 500 / 500 Pro 一体机设备 |
+| `External meter device` | 选择 Shelly、BitShake / Tasmota、EcoTracker 或其他外部电表设备 |
+| `External meter preset` | 按电表实体形态选择对应预设 |
+| `Full-charge hold helper` | 第 3 步创建的满电 Helper |
+| `Low-SOC hold helper` | 第 3 步创建的低 SOC Helper |
 
 在 `External meter preset` 中选择你的电表类型：
 
-| 电表或插件形态 | 推荐预设 | 需要填写的实体 |
+| 电表或插件形态 | 推荐预设 | 自动绑定说明 |
 | --- | --- | --- |
-| Shelly EM / Pro EM / Pro 3EM 已有总功率实体 | `Shelly EM / Pro EM / Pro 3EM total power` | `External meter total/current power entity` |
-| Shelly 3EM / Pro 3EM 只有 L1、L2、L3 三相实时功率 | `Shelly 3EM / Pro 3EM L1 + L2 + L3` | `External meter L1/L2/L3 power sensor` |
-| Shelly 3EM / Pro 3EM 提供每相 import/export 或 consumption/returned | `Shelly 3EM / Pro 3EM L1-L3 import/export` | L1/L2/L3 import 与 L1/L2/L3 export 六个实体 |
-| BitShake / Tasmota 提供一个当前功率实体 | `BitShake / Tasmota current power` | `External meter total/current power entity` |
-| EcoTracker 提供一个当前功率实体 | `EcoTracker current power entity` | `External meter total/current power entity` |
-| EcoTracker 功率在实体属性里 | `EcoTracker raw entity attribute` | `External meter total/current power entity` 和 `External meter power attribute` |
-| 其他单个有符号总功率实体 | `Custom signed total power` | `External meter total/current power entity` |
-| 其他三相功率实体 | `Custom L1 + L2 + L3 phase sum` | `External meter L1/L2/L3 power sensor` |
-| 其他总 import/export 功率对 | `Custom import/export power pair` | `External meter import power sensor` 和 `External meter export power sensor` |
-| 其他三相 import/export 功率对 | `Custom L1-L3 import/export pair` | L1/L2/L3 import 与 L1/L2/L3 export 六个实体 |
+| Shelly EM / Pro EM / Pro 3EM 已有总功率实体 | `Shelly EM / Pro EM / Pro 3EM total power` | 自动找电表设备下的总功率实体 |
+| Shelly 3EM / Pro 3EM 只有 L1、L2、L3 三相实时功率 | `Shelly 3EM / Pro 3EM L1 + L2 + L3` | 自动找 L1/L2/L3 实时功率实体 |
+| Shelly 3EM / Pro 3EM 提供每相 import/export 或 consumption/returned | `Shelly 3EM / Pro 3EM L1-L3 import/export` | 自动找 L1/L2/L3 import 与 export 六个实体 |
+| BitShake / Tasmota 提供一个当前功率实体 | `BitShake / Tasmota current power` | 自动找当前功率实体 |
+| EcoTracker 提供一个当前功率实体 | `EcoTracker current power entity` | 自动找当前功率实体 |
+| EcoTracker 功率在实体属性里 | `EcoTracker raw entity attribute` | 自动找实体，属性名默认 `power` |
+| 其他单个有符号总功率实体 | `Custom signed total power` | 自动找总功率实体；不准时用高级覆盖 |
+| 其他三相功率实体 | `Custom L1 + L2 + L3 phase sum` | 自动找 L1/L2/L3 功率实体；不准时用高级覆盖 |
+| 其他总 import/export 功率对 | `Custom import/export power pair` | 自动找 import/export 功率对；不准时用高级覆盖 |
+| 其他三相 import/export 功率对 | `Custom L1-L3 import/export pair` | 自动找三相 import/export；不准时用高级覆盖 |
 
 ### 5.2 配置电表符号方向
 
@@ -132,7 +144,7 @@ Auto from selected preset
 
 通常建议先保持自动。
 
-如果现场发现方向反了，再手动改：
+该设置默认隐藏在 `Advanced meter settings` 中。如果现场发现方向反了，再展开手动改：
 
 | 现场观察 | 应选择 |
 | --- | --- |
@@ -150,22 +162,17 @@ Auto from selected preset
 | `W` | `1` |
 | `kW` | `1000` |
 
-## 6. 配置一体机实体
+## 6. 高级设置和手动覆盖
 
-在蓝图中依次选择同一台 SunEnergyXT 一体机的实体：
+正常情况下不需要展开高级设置。蓝图会从 `SunEnergyXT device` 自动绑定一体机实体，从 `External meter device` 自动绑定电表实体。
 
-| 蓝图项 | 选择 |
-| --- | --- |
-| `SunEnergyXT GS number entity` | `System Grid Port Power Setpoint` |
-| `SunEnergyXT IS number entity` | `System Max Inverter Power Setpoint` |
-| `SunEnergyXT load power sensor` | `System Load Port Power` |
-| `SunEnergyXT grid-port power sensor` | `System Grid Port Power` |
-| `SunEnergyXT PV power sensor` | `PV Total Input Power` |
-| `SunEnergyXT SOC sensor` | `System Battery Level` |
-| `Full-charge hold helper` | 第 3 步创建的满电 Helper |
-| `Low-SOC hold helper` | 第 3 步创建的低 SOC Helper |
+只有以下情况才建议展开 `Advanced entity overrides`：
 
-注意：这些实体必须来自同一台一体机，不能混用不同设备的实体。
+- 自动绑定到了错误的电表功率实体。
+- 电表实体命名不含 L1/L2/L3、import/export 等常见关键词。
+- 同一个电表设备下有多个功率实体，且蓝图无法判断哪个是实时功率。
+
+高级覆盖项留空表示继续自动绑定；只填写需要纠偏的实体即可。
 
 ## 7. 配置控制目标和限制
 
