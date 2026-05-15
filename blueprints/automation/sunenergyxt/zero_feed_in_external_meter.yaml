@@ -446,7 +446,11 @@ blueprint:
 
         max_meter_age_s:
           name: Maximum meter age
-          default: 8
+          description: >
+            Maximum age for meter and device readings. The default allows
+            meters such as Shelly Pro 3EM to leave idle 0 W phase sensors
+            unchanged without blocking control.
+          default: 30
           selector:
             number:
               min: 2
@@ -858,7 +862,22 @@ variables:
       {{ ns.entity | trim }}
     {% endif %}
   auto_meter_power_source: >-
-    {% if meter_l1_entity | string | trim | length > 0
+    {% set total_entity = meter_entity | string | trim %}
+    {% set total_name = (state_attr(total_entity, 'friendly_name') or total_entity) | lower if total_entity | length > 0 else '' %}
+    {% set total_eid = total_entity | lower %}
+    {% set total_is_phase = 'phase' in total_name
+        or '_l1' in total_eid
+        or '_l2' in total_eid
+        or '_l3' in total_eid %}
+    {% set total_is_strong = total_entity | length > 0
+        and not total_is_phase
+        and ('total' in total_name
+             or 'total' in total_eid
+             or 'gesamt' in total_name
+             or 'sum' in total_name) %}
+    {% if total_is_strong %}
+      {{ 'custom_signed_total_power' }}
+    {% elif meter_l1_entity | string | trim | length > 0
           and meter_l2_entity | string | trim | length > 0
           and meter_l3_entity | string | trim | length > 0 %}
       {{ 'custom_three_phase_sum' }}
@@ -970,9 +989,9 @@ condition:
         {{ meter_l1_entity | string | length > 0
            and meter_l2_entity | string | length > 0
            and meter_l3_entity | string | length > 0
-           and (as_timestamp(now()) - as_timestamp(states[meter_l1_entity | trim].last_updated, 0)) <= limit
-           and (as_timestamp(now()) - as_timestamp(states[meter_l2_entity | trim].last_updated, 0)) <= limit
-           and (as_timestamp(now()) - as_timestamp(states[meter_l3_entity | trim].last_updated, 0)) <= limit }}
+           and ((as_timestamp(now()) - as_timestamp(states[meter_l1_entity | trim].last_updated, 0)) <= limit
+                or (as_timestamp(now()) - as_timestamp(states[meter_l2_entity | trim].last_updated, 0)) <= limit
+                or (as_timestamp(now()) - as_timestamp(states[meter_l3_entity | trim].last_updated, 0)) <= limit) }}
       {% elif source == 'import_export_pair' %}
         {{ meter_import_entity | string | length > 0
            and meter_export_entity | string | length > 0
@@ -985,12 +1004,12 @@ condition:
            and meter_l1_export_entity | string | length > 0
            and meter_l2_export_entity | string | length > 0
            and meter_l3_export_entity | string | length > 0
-           and (as_timestamp(now()) - as_timestamp(states[meter_l1_import_entity | trim].last_updated, 0)) <= limit
-           and (as_timestamp(now()) - as_timestamp(states[meter_l2_import_entity | trim].last_updated, 0)) <= limit
-           and (as_timestamp(now()) - as_timestamp(states[meter_l3_import_entity | trim].last_updated, 0)) <= limit
-           and (as_timestamp(now()) - as_timestamp(states[meter_l1_export_entity | trim].last_updated, 0)) <= limit
-           and (as_timestamp(now()) - as_timestamp(states[meter_l2_export_entity | trim].last_updated, 0)) <= limit
-           and (as_timestamp(now()) - as_timestamp(states[meter_l3_export_entity | trim].last_updated, 0)) <= limit }}
+           and ((as_timestamp(now()) - as_timestamp(states[meter_l1_import_entity | trim].last_updated, 0)) <= limit
+                or (as_timestamp(now()) - as_timestamp(states[meter_l2_import_entity | trim].last_updated, 0)) <= limit
+                or (as_timestamp(now()) - as_timestamp(states[meter_l3_import_entity | trim].last_updated, 0)) <= limit
+                or (as_timestamp(now()) - as_timestamp(states[meter_l1_export_entity | trim].last_updated, 0)) <= limit
+                or (as_timestamp(now()) - as_timestamp(states[meter_l2_export_entity | trim].last_updated, 0)) <= limit
+                or (as_timestamp(now()) - as_timestamp(states[meter_l3_export_entity | trim].last_updated, 0)) <= limit) }}
       {% else %}
         {{ false }}
       {% endif %}
