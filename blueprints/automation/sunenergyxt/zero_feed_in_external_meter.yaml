@@ -2,12 +2,13 @@ blueprint:
   name: SunEnergyXT 500 Series - External Meter Zero Feed-in
   description: >
     Zero feed-in controller for SunEnergyXT 500 / 500 Pro using an external Home
-    Assistant meter. It does not use MM or MD. Select the meter device and the
-    SunEnergyXT device; the blueprint auto-detects common HA / HACS meter
-    shapes such as Shelly, BitShake / Tasmota, EcoTracker, signed total power,
-    three-phase power, and import/export pairs. The automation then controls
-    the SunEnergyXT GS setpoint and IS output limit with the same topology
-    logic used by the simulator.
+    Assistant meter. It does not use the device operation-mode or discharge-mode
+    controls. Select the meter device and the SunEnergyXT device; the blueprint
+    auto-detects common HA / HACS meter shapes such as Shelly, BitShake /
+    Tasmota, EcoTracker, signed total power, three-phase power, and
+    import/export pairs. The automation then controls the SunEnergyXT system
+    grid-port power setpoint and system max inverter power setpoint with the
+    same topology logic used by the simulator.
   domain: automation
   homeassistant:
     min_version: "2024.6.0"
@@ -34,8 +35,10 @@ blueprint:
           name: SunEnergyXT device
           description: >
             Select the SunEnergyXT 500 / 500 Pro device. The blueprint will
-            auto-find GS, IS, LP, GP, PV, SC, and the device SOC limit entities
-            from this device.
+            auto-find the system grid-port power setpoint, system max inverter
+            power setpoint, load-port power, grid-port power, PV total input
+            power, system battery level, and system SOC limit entities from
+            this device.
           selector:
             device:
               filter:
@@ -72,30 +75,30 @@ blueprint:
               mode: box
 
         min_discharge_soc:
-          name: Fallback SOC lower limit
+          name: System Min Discharge SOC
           description: >
-            Used only if the SunEnergyXT device does not expose a min-discharge
-            SOC number entity. When the device entity exists, the automation
-            reads the device value directly.
+            Sets the selected SunEnergyXT device's System Min Discharge SOC
+            number entity. The automation also uses this value as the low-SOC
+            control threshold.
           default: 10
           selector:
             number:
-              min: 0
-              max: 100
+              min: 1
+              max: 30
               step: 1
               unit_of_measurement: "%"
               mode: box
 
         max_charge_soc:
-          name: Fallback SOC upper limit
+          name: System Max Charge SOC
           description: >
-            Used only if the SunEnergyXT device does not expose a max-charge SOC
-            number entity. When the device entity exists, the automation reads
-            the device value directly.
+            Sets the selected SunEnergyXT device's System Max Charge SOC number
+            entity. The automation also uses this value as the full-battery
+            control threshold.
           default: 100
           selector:
             number:
-              min: 0
+              min: 70
               max: 100
               step: 1
               unit_of_measurement: "%"
@@ -122,14 +125,14 @@ blueprint:
         wrong.
       input:
         gs_number:
-          name: Override GS number entity
+          name: Override System Grid Port Power Setpoint entity
           default: ""
           selector:
             entity:
               domain: number
 
         is_number:
-          name: Override IS number entity
+          name: Override System Max Inverter Power Setpoint entity
           default: ""
           selector:
             entity:
@@ -355,10 +358,10 @@ blueprint:
               mode: box
 
         gs_min_w:
-          name: GS lower limit
+          name: System Grid Port Power Setpoint lower limit
           description: >
-            Minimum GS command. Negative values allow grid import / charging to
-            absorb surplus power.
+            Minimum allowed system grid-port power setpoint. Negative values
+            allow grid import / charging to absorb surplus power.
           default: -2400
           selector:
             number:
@@ -369,7 +372,7 @@ blueprint:
               mode: box
 
         gs_resolution_w:
-          name: GS write resolution
+          name: System Grid Port Power Setpoint write resolution
           default: 1
           selector:
             number:
@@ -448,11 +451,12 @@ blueprint:
         gs_feedback_settle_s:
           name: Control feedback settle time
           description: >
-            Minimum time after a GS or IS write before the next control write.
-            The automation also waits for fresh GP and meter samples after the
-            last control change. The default matches observed SunEnergyXT GP
-            feedback latency and reduces hunting when an external device
-            changes output.
+            Minimum time after a system grid-port power setpoint or system max
+            inverter power setpoint write before the next control write. The
+            automation also waits for fresh grid-port power and meter samples
+            after the last control change. The default matches observed
+            SunEnergyXT feedback latency and reduces hunting when an external
+            device changes output.
           default: 5
           selector:
             number:
@@ -510,24 +514,8 @@ blueprint:
               unit_of_measurement: s
               mode: box
 
-        soc_hysteresis:
-          name: SOC hysteresis
-          description: >
-            SunEnergyXT devices use a fixed 5% SOC hysteresis by default. With
-            optional hold helpers, the automation keeps exact stateful
-            hysteresis. Without helpers, it uses this value as a conservative
-            guard band around the device SOC limits.
-          default: 5
-          selector:
-            number:
-              min: 0
-              max: 20
-              step: 1
-              unit_of_measurement: "%"
-              mode: box
-
         is_resolution_w:
-          name: IS write resolution
+          name: System Max Inverter Power Setpoint write resolution
           default: 10
           selector:
             number:
@@ -613,7 +601,6 @@ variables:
   max_meter_age_s: !input max_meter_age_s
   min_discharge_soc: !input min_discharge_soc
   max_charge_soc: !input max_charge_soc
-  soc_hysteresis: !input soc_hysteresis
   ac_couple_max_charge_power_w: !input ac_couple_max_charge_power_w
   is_resolution_w: !input is_resolution_w
   gs_entity: >-
@@ -1054,6 +1041,14 @@ condition:
       {{ states(soc_entity | trim) not in ['unknown', 'unavailable', 'none', ''] }}
   - condition: template
     value_template: >-
+      {{ min_soc_entity | string | length > 0
+         and states(min_soc_entity | trim) not in ['unknown', 'unavailable', 'none', ''] }}
+  - condition: template
+    value_template: >-
+      {{ max_soc_entity | string | length > 0
+         and states(max_soc_entity | trim) not in ['unknown', 'unavailable', 'none', ''] }}
+  - condition: template
+    value_template: >-
       {% set source = effective_meter_power_source | trim %}
       {% set limit = max_meter_age_s | float(30) %}
       {% set signed_sources = [
@@ -1291,27 +1286,39 @@ action:
         {% else %}
           {{ 0 }}
         {% endif %}
-      has_min_soc_limit_entity: >-
-        {{ min_soc_entity | string | trim | length > 0
-           and states(min_soc_entity | trim) not in ['unknown', 'unavailable', 'none', ''] }}
-      has_max_soc_limit_entity: >-
-        {{ max_soc_entity | string | trim | length > 0
-           and states(max_soc_entity | trim) not in ['unknown', 'unavailable', 'none', ''] }}
       effective_min_discharge_soc: >-
-        {% if has_min_soc_limit_entity | bool(false) %}
-          {{ states(min_soc_entity | trim) | float(min_discharge_soc | float(10)) }}
-        {% else %}
-          {{ min_discharge_soc | float(10) }}
-        {% endif %}
+        {{ min_discharge_soc | float(10) }}
       effective_max_charge_soc: >-
-        {% if has_max_soc_limit_entity | bool(false) %}
-          {{ states(max_soc_entity | trim) | float(max_charge_soc | float(100)) }}
-        {% else %}
-          {{ max_charge_soc | float(100) }}
-        {% endif %}
+        {{ max_charge_soc | float(100) }}
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: >-
+              {{ ((states(min_soc_entity | trim) | float(0)) - (min_discharge_soc | float(10))) | abs >= 1 }}
+        sequence:
+          - service: number.set_value
+            continue_on_error: true
+            target:
+              entity_id: "{{ min_soc_entity | trim }}"
+            data:
+              value: "{{ min_discharge_soc }}"
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: >-
+              {{ ((states(max_soc_entity | trim) | float(0)) - (max_charge_soc | float(100))) | abs >= 1 }}
+        sequence:
+          - service: number.set_value
+            continue_on_error: true
+            target:
+              entity_id: "{{ max_soc_entity | trim }}"
+            data:
+              value: "{{ max_charge_soc }}"
 
   - variables:
-      soc_hysteresis_value: "{{ [soc_hysteresis | float(2), 0] | max }}"
+      soc_hysteresis_value: 5
       has_full_hold_helper: >-
         {{ full_hold_entity | string | trim | length > 0 }}
       has_low_hold_helper: >-
@@ -1336,7 +1343,7 @@ action:
             {{ current_full_hold_state | bool(false) }}
           {% endif %}
         {% else %}
-          {{ soc >= release }}
+          {{ soc >= upper }}
         {% endif %}
       low_hold_state_prelim: >-
         {% set soc = soc_value | float(50) %}
@@ -1351,7 +1358,7 @@ action:
             {{ current_low_hold_state | bool(false) }}
           {% endif %}
         {% else %}
-          {{ soc <= release }}
+          {{ soc <= lower }}
         {% endif %}
 
   - variables:
@@ -1438,7 +1445,7 @@ action:
         {{ (desired_load_port_output_w | float(0)) + ([raw_grid_port_target_w | float(0), 0] | max) }}
       pre_soc_target_is_w: >-
         {% if bypass_only | bool(false) %}
-          {{ current_is_w | float(0) }}
+          {{ inverter_rated_w | float(2400) }}
         {% else %}
           {{ raw_is_target_w | float(0) }}
         {% endif %}
@@ -1496,7 +1503,7 @@ action:
         {{ [[unbounded_target_gs_w | float(0), low] | max, high] | min }}
       unclamped_target_is_w: >-
         {% if bypass_only | bool(false) %}
-          {{ current_is_w | float(0) }}
+          {{ inverter_rated_w | float(2400) }}
         {% elif discharge_blocked_by_soc | bool(false) %}
           {{ [pre_soc_target_is_w | float(0), pv_power_w | float(0)] | min }}
         {% else %}
@@ -1557,8 +1564,7 @@ action:
 
   - variables:
       should_write_is: >-
-        {{ not (bypass_only | bool(false))
-           and (seconds_since_control_change | float(999)) >= (control_feedback_interval_s | float(8))
+        {{ (seconds_since_control_change | float(999)) >= (control_feedback_interval_s | float(8))
            and (control_gp_sample_after_change | bool(false))
            and (control_meter_sample_after_change | bool(false))
            and ((next_is_w | float(0)) - (current_is_w | float(0))) | abs >= (is_resolution_w | float(10)) }}

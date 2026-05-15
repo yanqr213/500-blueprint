@@ -1080,21 +1080,12 @@
             </div>
           </div>
 
-          <div class="control two">
-            <div>
-              <div class="label-row">
-                <label for="socHys">SOC 回差</label>
-                <span class="value" id="socHysValue">2%</span>
-              </div>
-              <input id="socHys" type="range" min="0" max="20" step="1" value="2">
+          <div class="control">
+            <div class="label-row">
+              <label for="targetGrid">目标电表值</label>
+              <span class="value" id="targetGridValue">0W</span>
             </div>
-            <div>
-              <div class="label-row">
-                <label for="targetGrid">目标电表值</label>
-                <span class="value" id="targetGridValue">0W</span>
-              </div>
-              <input id="targetGrid" type="range" min="-200" max="200" step="1" value="0">
-            </div>
+            <input id="targetGrid" type="range" min="-200" max="200" step="1" value="0">
           </div>
 
           <div class="control">
@@ -1143,7 +1134,7 @@
             <div class="desc">逆变器总输出上限；负载口优先占用，剩余部分才进入并网口。</div>
           </article>
           <article class="metric red">
-            <div class="name">PB 电池功率</div>
+            <div class="name">电池净功率</div>
             <div class="big" id="batteryPower">0W</div>
             <div class="desc">正数=充电，负数=放电。由端口功率平衡推算。</div>
           </article>
@@ -1202,7 +1193,7 @@
                 <rect width="350" height="120" rx="12"></rect>
                 <text class="map-title" x="26" y="34">电池</text>
                 <text class="map-value" id="mapBattery" x="26" y="70">0W</text>
-                <text class="map-note" id="mapBatteryNote" x="26" y="98">PB：正=充电，负=放电</text>
+                <text class="map-note" id="mapBatteryNote" x="26" y="98">正=充电，负=放电</text>
               </g>
 
               <g class="map-node core" transform="translate(560 220)">
@@ -1363,7 +1354,7 @@
                   <strong id="flowInvValue">0W</strong>
                 </div>
                 <div class="bus-line">
-                  <span>电池 PB</span>
+                  <span>电池净功率</span>
                   <div class="bus-track"><span id="flowBattery"></span></div>
                   <strong id="flowBatteryValue">0W</strong>
                 </div>
@@ -1452,7 +1443,6 @@
       soc: $("soc"),
       socLow: $("socLow"),
       socHigh: $("socHigh"),
-      socHys: $("socHys"),
       targetGrid: $("targetGrid"),
       fullBatteryMode: $("fullBatteryMode"),
       acChargeLimit: $("acChargeLimit")
@@ -1751,7 +1741,7 @@
 
       if (ports.bypassOnly) {
         targetGs = 0;
-        targetIs = state.is;
+        targetIs = params.inverterRatedW;
       }
 
       targetGs = clamp(targetGs, gsMin, gsMax);
@@ -1769,8 +1759,7 @@
       let nextGs = roundTo(state.gs + delta, params.gsResolutionW);
       nextGs = clamp(nextGs, gsMin, gsMax);
 
-      const canWriteIs = !ports.bypassOnly
-        && (state.tick - state.lastIsWriteTick) >= requiredInterval
+      const canWriteIs = (state.tick - state.lastIsWriteTick) >= requiredInterval
         && Math.abs(nextIs - state.is) >= params.isResolutionW;
       const canWriteGs = (state.tick - state.lastGsWriteTick) >= requiredInterval && nextGs !== state.gs;
 
@@ -1839,7 +1828,7 @@
         soc: inputNumber("soc"),
         socLow: inputNumber("socLow"),
         socHigh: inputNumber("socHigh"),
-        socHys: inputNumber("socHys"),
+        socHys: 5,
         fullChargeHold: state.fullChargeHold,
         lowDischargeHold: state.lowDischargeHold,
         targetGrid: inputNumber("targetGrid"),
@@ -1964,10 +1953,10 @@
       setMapText("mapInverter", fmt(ports.inverterOutput), ports.inverterOutput);
       $("mapPvInfo").textContent = `PV ${fmt(ports.mpptInputPower)} / 限发 ${fmt(ports.pvCurtailed)}`;
       $("mapBatteryNote").textContent = ports.batteryPower > 0
-        ? "PB 正：电池充电"
+        ? "正功率：电池充电"
         : ports.batteryPower < 0
-          ? "PB 负：电池放电"
-          : "PB 0：电池无净功率";
+          ? "负功率：电池放电"
+          : "0W：电池无净功率";
       setMapText("mapIs", fmt(state.is), state.is);
       setMapText("mapGridPort", fmt(ports.gridPortOutput), ports.gridPortOutput);
       $("mapGsNote").textContent = `GS ${fmt(state.gs)}`;
@@ -2014,11 +2003,11 @@
         ["II1..II4", current.toFixed(2), "A", "按 PV/电压反推的模拟电流"],
         ["GP", Math.round(ports.gridPortOutput), "W", "并网口功率，正=输出，负=输入"],
         ["LP", Math.round(ports.effectiveLoadPort), "W", state.loadPortConnected ? "负载口功率，负=负载口回灌" : "负载口保护断开，物模型按 0 处理"],
-        ["PB", Math.round(ports.batteryPower), "W", "电池功率，正=充电，负=放电"],
+        ["Battery", Math.round(ports.batteryPower), "W", "电池净功率，正=充电，负=放电"],
         ["IW", Math.round(ports.totalInputPower), "W", "设备总输入功率"],
         ["OP", Math.round(ports.totalOutputPower), "W", "设备总输出功率"],
         ["LP->GP", Math.round(ports.loadBackfeedToGrid), "W", "模拟项：负载口回灌中被并网口输出消纳的部分"],
-        ["LP->PB", Math.round(ports.loadBackfeedChargeAccepted), "W", "模拟项：负载口回灌中进入电池的部分"],
+        ["LP->Battery", Math.round(ports.loadBackfeedChargeAccepted), "W", "模拟项：负载口回灌中进入电池的部分"],
         ["LP Reject", Math.round(ports.rejectedLoadBackfeed), "W", "模拟项：满电/无输出通道时不可吸收的负载口回流"],
         ["PV Bypass", Math.round(ports.pvBypassToLoad + ports.pvBypassToGrid), "W", "模拟项：满电跟随光伏时进入逆变 AC 输出的 PV bypass 功率；先供负载，剩余才到并网口"],
         ["SC", Math.round(snapshot.soc), "%", "系统 SOC"],
@@ -2047,7 +2036,6 @@
       $("socValue").textContent = `${snap.soc}%`;
       $("socLowValue").textContent = `${snap.socLow}%`;
       $("socHighValue").textContent = `${snap.socHigh}%`;
-      $("socHysValue").textContent = `${snap.socHys}%`;
       $("targetGridValue").textContent = fmt(snap.targetGrid);
       $("acChargeLimitValue").textContent = fmt(snap.acChargeLimit);
       $("userGridLimitValue").textContent = fmt(snap.userGridLimit);

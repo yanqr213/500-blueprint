@@ -90,6 +90,9 @@ function createHarness() {
 
   function setInputs(values) {
     for (const [key, value] of Object.entries(values)) {
+      if (!vm.runInContext(`Object.prototype.hasOwnProperty.call(controls, ${JSON.stringify(key)})`, context)) {
+        continue;
+      }
       vm.runInContext(`controls.${key}.value = ${JSON.stringify(String(value))}`, context);
     }
   }
@@ -229,13 +232,13 @@ function checkInstantCase(name, inputs, stateValues = {}) {
 
   if (snap.soc >= snap.socHigh) {
     assertCondition(name, ports.batteryCharge <= epsilon, "SOC at/above upper limit still charges battery", data);
-    assertCondition(name, ports.batteryPower <= epsilon, "SOC at/above upper limit has positive PB", data);
+    assertCondition(name, ports.batteryPower <= epsilon, "SOC at/above upper limit still has positive battery net flow", data);
     assertCondition(name, ports.gridPortOutput >= -epsilon, "SOC at/above upper limit still pulls grid input", data);
   }
 
   if (snap.soc <= snap.socLow) {
     assertCondition(name, ports.batteryDischarge <= epsilon, "SOC at/below lower limit still discharges battery", data);
-    assertCondition(name, ports.batteryPower >= -epsilon, "SOC at/below lower limit has negative PB", data);
+    assertCondition(name, ports.batteryPower >= -epsilon, "SOC at/below lower limit still has negative battery net flow", data);
   }
 
   if (ports.loadPortBackfeed > 0 && snap.soc < snap.socHigh && state.gs <= 0 && !ports.bypassActive && canAbsorbAllLoadBackfeed(snap, ports)) {
@@ -370,7 +373,13 @@ function runClosedLoopSuite() {
       "Full follow PV sends PV to load first then GP",
       { homeLoad: 800, loadPortPower: 320, pvPower: 1200, soc: 95, socHigh: 90, fullBatteryMode: "follow_pv" },
       { gs: -200, is: 320 },
-      { expected: { "state.gs": 0, "ports.pvBypassToLoad": 320, "ports.pvBypassToGrid": 880, "ports.gridPortOutput": 880, "ports.batteryPower": 0 } }
+      { expected: { "state.gs": 0, "state.is": 2400, "ports.pvBypassToLoad": 320, "ports.pvBypassToGrid": 880, "ports.gridPortOutput": 880, "ports.batteryPower": 0 } }
+    ],
+    [
+      "Full follow PV opens inverter limit for pure bypass",
+      { homeLoad: 40, loadPortPower: 0, pvPower: 799, soc: 95, socHigh: 90, fullBatteryMode: "follow_pv" },
+      { gs: 0, is: 1 },
+      { expected: { "state.gs": 0, "state.is": 2400, "ports.bypassActive": true, "ports.bypassOnly": true, "ports.pvBypassToGrid": 799, "ports.gridPortOutput": 799, "ports.batteryPower": 0 } }
     ],
     [
       "Full follow PV with large off-grid load consumes PV before GP",
