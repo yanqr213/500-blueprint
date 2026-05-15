@@ -34,7 +34,8 @@ blueprint:
           name: SunEnergyXT device
           description: >
             Select the SunEnergyXT 500 / 500 Pro device. The blueprint will
-            auto-find GS, IS, LP, GP, PV, and SC from this device.
+            auto-find GS, IS, LP, GP, PV, SC, and the device SOC limit entities
+            from this device.
           selector:
             device:
               filter:
@@ -44,28 +45,6 @@ blueprint:
       name: User settings
       icon: mdi:tune
       input:
-        min_discharge_soc:
-          name: SOC lower limit
-          default: 10
-          selector:
-            number:
-              min: 0
-              max: 100
-              step: 1
-              unit_of_measurement: "%"
-              mode: box
-
-        max_charge_soc:
-          name: SOC upper limit
-          default: 100
-          selector:
-            number:
-              min: 0
-              max: 100
-              step: 1
-              unit_of_measurement: "%"
-              mode: box
-
         full_battery_mode:
           name: Full-battery behavior
           default: follow_load
@@ -142,6 +121,20 @@ blueprint:
           selector:
             entity:
               domain: sensor
+
+        min_discharge_soc_number:
+          name: Override min-discharge SOC number
+          default: ""
+          selector:
+            entity:
+              domain: number
+
+        max_charge_soc_number:
+          name: Override max-charge SOC number
+          default: ""
+          selector:
+            entity:
+              domain: number
 
         meter_power_sensor:
           name: Override meter total/current power sensor
@@ -412,13 +405,14 @@ blueprint:
               mode: box
 
         gs_feedback_settle_s:
-          name: GS feedback settle time
+          name: Control feedback settle time
           description: >
-            Minimum time after a GS write before the next GS write. The
-            automation also waits for fresh GP and meter samples after the last
-            GS change. The default matches observed SunEnergyXT GP feedback
-            latency and reduces hunting when an external device changes output.
-          default: 8
+            Minimum time after a GS or IS write before the next control write.
+            The automation also waits for fresh GP and meter samples after the
+            last control change. The default matches observed SunEnergyXT GP
+            feedback latency and reduces hunting when an external device
+            changes output.
+          default: 5
           selector:
             number:
               min: 1
@@ -440,7 +434,7 @@ blueprint:
 
         medium_max_step_w:
           name: Medium-error max adjustment
-          default: 100
+          default: 120
           selector:
             number:
               min: 10
@@ -451,7 +445,7 @@ blueprint:
 
         fast_max_step_w:
           name: Large-error max adjustment
-          default: 300
+          default: 450
           selector:
             number:
               min: 50
@@ -475,9 +469,44 @@ blueprint:
               unit_of_measurement: s
               mode: box
 
+        min_discharge_soc:
+          name: Fallback SOC lower limit
+          description: >
+            Used only if the SunEnergyXT device does not expose a min-discharge
+            SOC number entity. When the device entity exists, the automation
+            reads the device value directly.
+          default: 10
+          selector:
+            number:
+              min: 0
+              max: 100
+              step: 1
+              unit_of_measurement: "%"
+              mode: box
+
+        max_charge_soc:
+          name: Fallback SOC upper limit
+          description: >
+            Used only if the SunEnergyXT device does not expose a max-charge SOC
+            number entity. When the device entity exists, the automation reads
+            the device value directly.
+          default: 100
+          selector:
+            number:
+              min: 0
+              max: 100
+              step: 1
+              unit_of_measurement: "%"
+              mode: box
+
         soc_hysteresis:
           name: SOC hysteresis
-          default: 2
+          description: >
+            SunEnergyXT devices use a fixed 5% SOC hysteresis by default. With
+            optional hold helpers, the automation keeps exact stateful
+            hysteresis. Without helpers, it uses this value as a conservative
+            guard band around the device SOC limits.
+          default: 5
           selector:
             number:
               min: 0
@@ -562,6 +591,8 @@ variables:
   gp_entity_override: !input grid_port_power_sensor
   pv_entity_override: !input pv_power_sensor
   soc_entity_override: !input soc_sensor
+  min_soc_entity_override: !input min_discharge_soc_number
+  max_soc_entity_override: !input max_charge_soc_number
   full_hold_entity: !input full_charge_hold_helper
   low_hold_entity: !input low_discharge_hold_helper
   full_battery_mode: !input full_battery_mode
@@ -670,6 +701,47 @@ variables:
         {% set name = (state_attr(entity, 'friendly_name') or entity) | lower %}
         {% set eid = entity | lower %}
         {% if eid.endswith('_sc') or 'battery level' in name or '系统总电量' in name or 'speicherlevel' in name %}
+          {% set ns.entity = entity %}
+        {% endif %}
+      {% endfor %}
+      {{ ns.entity | trim }}
+    {% endif %}
+  min_soc_entity: >-
+    {% set override = min_soc_entity_override | string %}
+    {% if override | length > 0 %}
+      {{ override | trim }}
+    {% else %}
+      {% set ns = namespace(entity='') %}
+      {% for entity in device_entities(aio_device) if ns.entity == '' and entity.startswith('number.') %}
+        {% set name = (state_attr(entity, 'friendly_name') or entity) | lower %}
+        {% set eid = entity | lower %}
+        {% set is_load_port = 'load port' in name or 'load_port' in eid or '负载口' in name %}
+        {% set is_min_soc = 'min_discharge_soc' in eid
+             or 'system min discharge soc' in name
+             or 'min discharge soc' in name
+             or ('minimum' in name and 'discharge' in name and 'soc' in name)
+             or ('放电' in name and ('下限' in name or '最低' in name)) %}
+        {% if is_min_soc and not is_load_port %}
+          {% set ns.entity = entity %}
+        {% endif %}
+      {% endfor %}
+      {{ ns.entity | trim }}
+    {% endif %}
+  max_soc_entity: >-
+    {% set override = max_soc_entity_override | string %}
+    {% if override | length > 0 %}
+      {{ override | trim }}
+    {% else %}
+      {% set ns = namespace(entity='') %}
+      {% for entity in device_entities(aio_device) if ns.entity == '' and entity.startswith('number.') %}
+        {% set name = (state_attr(entity, 'friendly_name') or entity) | lower %}
+        {% set eid = entity | lower %}
+        {% set is_max_soc = 'max_charge_soc' in eid
+             or 'system max charge soc' in name
+             or 'max charge soc' in name
+             or ('maximum' in name and 'charge' in name and 'soc' in name)
+             or ('充电' in name and ('上限' in name or '最高' in name)) %}
+        {% if is_max_soc %}
           {% set ns.entity = entity %}
         {% endif %}
       {% endfor %}
@@ -1187,23 +1259,55 @@ action:
         {% else %}
           {{ 0 }}
         {% endif %}
-      load_power_w: >-
+      load_power_raw_w: >-
         {% if has_load | bool(false) %}
           {{ states(load_entity | trim) | float(0) }}
         {% else %}
           {{ 0 }}
         {% endif %}
-      gp_power_w: >-
+      load_power_w: >-
+        {% set raw = load_power_raw_w | float(0) %}
+        {% if raw > 32767 %}
+          {{ raw - 65536 }}
+        {% else %}
+          {{ raw }}
+        {% endif %}
+      gp_power_raw_w: >-
         {% if has_gp | bool(false) %}
           {{ states(gp_entity | trim) | float(0) }}
         {% else %}
           {{ 0 }}
+        {% endif %}
+      gp_power_w: >-
+        {% set raw = gp_power_raw_w | float(0) %}
+        {% if raw > 32767 %}
+          {{ raw - 65536 }}
+        {% else %}
+          {{ raw }}
         {% endif %}
       pv_power_w: >-
         {% if has_pv | bool(false) %}
           {{ states(pv_entity | trim) | float(0) }}
         {% else %}
           {{ 0 }}
+        {% endif %}
+      has_min_soc_limit_entity: >-
+        {{ min_soc_entity | string | trim | length > 0
+           and states(min_soc_entity | trim) not in ['unknown', 'unavailable', 'none', ''] }}
+      has_max_soc_limit_entity: >-
+        {{ max_soc_entity | string | trim | length > 0
+           and states(max_soc_entity | trim) not in ['unknown', 'unavailable', 'none', ''] }}
+      effective_min_discharge_soc: >-
+        {% if has_min_soc_limit_entity | bool(false) %}
+          {{ states(min_soc_entity | trim) | float(min_discharge_soc | float(10)) }}
+        {% else %}
+          {{ min_discharge_soc | float(10) }}
+        {% endif %}
+      effective_max_charge_soc: >-
+        {% if has_max_soc_limit_entity | bool(false) %}
+          {{ states(max_soc_entity | trim) | float(max_charge_soc | float(100)) }}
+        {% else %}
+          {{ max_charge_soc | float(100) }}
         {% endif %}
 
   - variables:
@@ -1221,29 +1325,33 @@ action:
       state_mismatch_threshold_w: "{{ [small_error_w | float(30), 30] | max }}"
       full_hold_state: >-
         {% set soc = soc_value | float(50) %}
-        {% set upper = max_charge_soc | float(100) %}
+        {% set upper = effective_max_charge_soc | float(100) %}
         {% set release = upper - (soc_hysteresis_value | float(2)) %}
-        {% if soc >= upper %}
-          {{ true }}
-        {% elif soc <= release %}
-          {{ false }}
-        {% elif not (has_full_hold_helper | bool(false)) %}
-          {{ false }}
+        {% if has_full_hold_helper | bool(false) %}
+          {% if soc >= upper %}
+            {{ true }}
+          {% elif soc <= release %}
+            {{ false }}
+          {% else %}
+            {{ current_full_hold_state | bool(false) }}
+          {% endif %}
         {% else %}
-          {{ current_full_hold_state | bool(false) }}
+          {{ soc >= release }}
         {% endif %}
       low_hold_state_prelim: >-
         {% set soc = soc_value | float(50) %}
-        {% set lower = min_discharge_soc | float(10) %}
+        {% set lower = effective_min_discharge_soc | float(10) %}
         {% set release = lower + (soc_hysteresis_value | float(2)) %}
-        {% if soc <= lower %}
-          {{ true }}
-        {% elif soc >= release %}
-          {{ false }}
-        {% elif not (has_low_hold_helper | bool(false)) %}
-          {{ false }}
+        {% if has_low_hold_helper | bool(false) %}
+          {% if soc <= lower %}
+            {{ true }}
+          {% elif soc >= release %}
+            {{ false }}
+          {% else %}
+            {{ current_low_hold_state | bool(false) }}
+          {% endif %}
         {% else %}
-          {{ current_low_hold_state | bool(false) }}
+          {{ soc <= release }}
         {% endif %}
 
   - variables:
@@ -1423,11 +1531,31 @@ action:
         {% else %}
           {{ 0 }}
         {% endif %}
+      is_last_change_ts: >-
+        {% if has_is | bool(false) %}
+          {{ as_timestamp(states[is_entity | trim].last_changed, 0) }}
+        {% else %}
+          {{ 0 }}
+        {% endif %}
+      gs_last_change_ts: "{{ as_timestamp(states[gs_entity | trim].last_changed, 0) }}"
+      control_last_change_ts: >-
+        {{ [as_timestamp(states[gs_entity | trim].last_changed, 0),
+            is_last_change_ts | float(0)] | max }}
+      seconds_since_control_change: >-
+        {{ as_timestamp(now()) - (control_last_change_ts | float(0)) }}
+      control_gp_sample_after_change: >-
+        {{ as_timestamp(states[gp_entity | trim].last_updated, 0) > (control_last_change_ts | float(0)) }}
+      control_meter_sample_after_change: >-
+        {{ (meter_control_sample_ts | float(0)) > (control_last_change_ts | float(0)) }}
+      control_feedback_interval_s: >-
+        {{ [required_interval_s | float(1), gs_feedback_settle_s | float(4)] | max }}
 
   - variables:
       should_write_is: >-
         {{ not (bypass_only | bool(false))
-           and (seconds_since_is_change | float(999)) >= (required_interval_s | float(1))
+           and (seconds_since_control_change | float(999)) >= (control_feedback_interval_s | float(8))
+           and (control_gp_sample_after_change | bool(false))
+           and (control_meter_sample_after_change | bool(false))
            and ((next_is_w | float(0)) - (current_is_w | float(0))) | abs >= (is_resolution_w | float(10)) }}
 
   - variables:
@@ -1460,19 +1588,12 @@ action:
   - variables:
       seconds_since_gs_change: >-
         {{ as_timestamp(now()) - as_timestamp(states[gs_entity | trim].last_changed, 0) }}
-      gs_last_change_ts: "{{ as_timestamp(states[gs_entity | trim].last_changed, 0) }}"
-      gp_sample_after_gs_change: >-
-        {{ as_timestamp(states[gp_entity | trim].last_updated, 0) > (gs_last_change_ts | float(0)) }}
-      meter_sample_after_gs_change: >-
-        {{ (meter_control_sample_ts | float(0)) > (gs_last_change_ts | float(0)) }}
-      gs_feedback_interval_s: >-
-        {{ [required_interval_s | float(1), gs_feedback_settle_s | float(4)] | max }}
 
   - variables:
       should_write_gs: >-
-        {{ (seconds_since_gs_change | float(999)) >= (gs_feedback_interval_s | float(8))
-           and (gp_sample_after_gs_change | bool(false))
-           and (meter_sample_after_gs_change | bool(false))
+        {{ (seconds_since_control_change | float(999)) >= (control_feedback_interval_s | float(8))
+           and (control_gp_sample_after_change | bool(false))
+           and (control_meter_sample_after_change | bool(false))
            and (next_gs_w | float(0)) != (current_gs_w | float(0)) }}
 
   - choose:
