@@ -2,34 +2,24 @@ blueprint:
   name: SunEnergyXT 500 Series - External Meter Zero Feed-in
   description: >
     Zero feed-in controller for SunEnergyXT 500 / 500 Pro using an external Home
-    Assistant meter. It does not use MM or MD. Choose a preset for common HA /
-    HACS meter integrations such as Shelly, BitShake / Tasmota, and
-    EcoTracker, or use a custom signed-total, three-phase, import/export, or
-    three-phase import/export configuration. The automation then controls the
-    SunEnergyXT GS setpoint and IS output limit with the same topology logic
-    used by the simulator.
+    Assistant meter. It does not use MM or MD. Select the meter device and the
+    SunEnergyXT device; the blueprint auto-detects common HA / HACS meter
+    shapes such as Shelly, BitShake / Tasmota, EcoTracker, signed total power,
+    three-phase power, and import/export pairs. The automation then controls
+    the SunEnergyXT GS setpoint and IS output limit with the same topology
+    logic used by the simulator.
   domain: automation
   homeassistant:
     min_version: "2024.6.0"
   source_url: https://github.com/yanqr213/500-blueprint/blob/main/blueprints/automation/sunenergyxt/zero_feed_in_external_meter.yaml
   input:
     required_devices:
-      name: Devices
+      name: Required setup
       icon: mdi:devices
       description: >
-        Select the SunEnergyXT all-in-one device and the external meter device.
+        Select the external meter device and the SunEnergyXT all-in-one device.
         The blueprint will auto-bind the matching entities from those devices.
       input:
-        aio_device:
-          name: SunEnergyXT device
-          description: >
-            Select the SunEnergyXT 500 / 500 Pro device. The blueprint will
-            auto-find GS, IS, LP, GP, PV, and SC from this device.
-          selector:
-            device:
-              filter:
-                - integration: sunenergyxt
-
         external_meter_device:
           name: External meter device
           description: >
@@ -40,68 +30,40 @@ blueprint:
               entity:
                 - domain: sensor
 
-        meter_power_source:
-          name: External meter preset
+        aio_device:
+          name: SunEnergyXT device
           description: >
-            Choose the preset that matches the entities exposed by the external
-            meter device. Manual entity overrides are available in advanced
-            settings if auto-binding picks the wrong sensor.
-          default: shelly_total_power
+            Select the SunEnergyXT 500 / 500 Pro device. The blueprint will
+            auto-find GS, IS, LP, GP, PV, and SC from this device.
           selector:
-            select:
-              options:
-                - label: Shelly EM / Pro EM / Pro 3EM total power
-                  value: shelly_total_power
-                - label: Shelly 3EM / Pro 3EM L1 + L2 + L3
-                  value: shelly_three_phase_sum
-                - label: Shelly 3EM / Pro 3EM L1-L3 import/export
-                  value: shelly_three_phase_import_export
-                - label: BitShake / Tasmota current power
-                  value: bitshake_tasmota_power
-                - label: EcoTracker current power entity
-                  value: ecotracker_power
-                - label: EcoTracker raw entity attribute
-                  value: ecotracker_attribute_power
-                - label: Custom signed total power
-                  value: custom_signed_total_power
-                - label: Custom L1 + L2 + L3 phase sum
-                  value: custom_three_phase_sum
-                - label: Custom import/export power pair
-                  value: import_export_pair
-                - label: Custom L1-L3 import/export pair
-                  value: custom_three_phase_import_export
+            device:
+              filter:
+                - integration: sunenergyxt
 
     basic_targets:
-      name: Basic targets
+      name: User settings
       icon: mdi:tune
       input:
-        target_grid_power_w:
-          name: Target grid power
-          description: >
-            Zero feed-in uses 0 W. Positive values intentionally keep a small
-            export; negative values intentionally keep a small import.
-          default: 0
-          selector:
-            number:
-              min: -200
-              max: 200
-              step: 1
-              unit_of_measurement: W
-              mode: box
-
-        gs_max_w:
-          name: Maximum on-grid output power
-          description: >
-            Maximum allowed on-grid output power. Use 800 for SunEnergyXT 500
-            and 2400 for SunEnergyXT 500 Pro unless a stricter local limit is
-            required.
-          default: 2400
+        min_discharge_soc:
+          name: SOC lower limit
+          default: 10
           selector:
             number:
               min: 0
-              max: 2400
+              max: 100
               step: 1
-              unit_of_measurement: W
+              unit_of_measurement: "%"
+              mode: box
+
+        max_charge_soc:
+          name: SOC upper limit
+          default: 100
+          selector:
+            number:
+              min: 0
+              max: 100
+              step: 1
+              unit_of_measurement: "%"
               mode: box
 
         full_battery_mode:
@@ -114,6 +76,21 @@ blueprint:
                   value: follow_load
                 - label: Follow PV after full
                   value: follow_pv
+
+        gs_max_w:
+          name: Maximum on-grid output power
+          description: >
+            Maximum allowed on-grid output power. Use 800 W for SunEnergyXT 500
+            and 2400 W for SunEnergyXT 500 Pro unless a stricter local limit is
+            required.
+          default: 2400
+          selector:
+            number:
+              min: 0
+              max: 2400
+              step: 1
+              unit_of_measurement: W
+              mode: box
 
     advanced_entity_overrides:
       name: Advanced entity overrides
@@ -255,6 +232,38 @@ blueprint:
       icon: mdi:meter-electric
       collapsed: true
       input:
+        meter_power_source:
+          name: External meter preset override
+          description: >
+            Leave Auto-detect unless the meter device exposes unusual entities
+            and the auto-binding result is wrong.
+          default: auto
+          selector:
+            select:
+              options:
+                - label: Auto-detect from meter device
+                  value: auto
+                - label: Shelly EM / Pro EM / Pro 3EM total power
+                  value: shelly_total_power
+                - label: Shelly 3EM / Pro 3EM L1 + L2 + L3
+                  value: shelly_three_phase_sum
+                - label: Shelly 3EM / Pro 3EM L1-L3 import/export
+                  value: shelly_three_phase_import_export
+                - label: BitShake / Tasmota current power
+                  value: bitshake_tasmota_power
+                - label: EcoTracker current power entity
+                  value: ecotracker_power
+                - label: EcoTracker raw entity attribute
+                  value: ecotracker_attribute_power
+                - label: Custom signed total power
+                  value: custom_signed_total_power
+                - label: Custom L1 + L2 + L3 phase sum
+                  value: custom_three_phase_sum
+                - label: Custom import/export power pair
+                  value: import_export_pair
+                - label: Custom L1-L3 import/export pair
+                  value: custom_three_phase_import_export
+
         meter_power_attribute:
           name: External meter power attribute
           description: >
@@ -297,6 +306,20 @@ blueprint:
       icon: mdi:cog-outline
       collapsed: true
       input:
+        target_grid_power_w:
+          name: Target grid power
+          description: >
+            Zero feed-in uses 0 W. Positive values intentionally keep a small
+            export; negative values intentionally keep a small import.
+          default: 0
+          selector:
+            number:
+              min: -200
+              max: 200
+              step: 1
+              unit_of_measurement: W
+              mode: box
+
         gs_min_w:
           name: GS lower limit
           description: >
@@ -430,28 +453,6 @@ blueprint:
               max: 300
               step: 1
               unit_of_measurement: s
-              mode: box
-
-        min_discharge_soc:
-          name: SOC lower limit
-          default: 10
-          selector:
-            number:
-              min: 0
-              max: 100
-              step: 1
-              unit_of_measurement: "%"
-              mode: box
-
-        max_charge_soc:
-          name: SOC upper limit
-          default: 100
-          selector:
-            number:
-              min: 0
-              max: 100
-              step: 1
-              unit_of_measurement: "%"
               mode: box
 
         soc_hysteresis:
@@ -856,11 +857,37 @@ variables:
       {% endfor %}
       {{ ns.entity | trim }}
     {% endif %}
+  auto_meter_power_source: >-
+    {% if meter_l1_entity | string | trim | length > 0
+          and meter_l2_entity | string | trim | length > 0
+          and meter_l3_entity | string | trim | length > 0 %}
+      {{ 'custom_three_phase_sum' }}
+    {% elif meter_l1_import_entity | string | trim | length > 0
+          and meter_l2_import_entity | string | trim | length > 0
+          and meter_l3_import_entity | string | trim | length > 0
+          and meter_l1_export_entity | string | trim | length > 0
+          and meter_l2_export_entity | string | trim | length > 0
+          and meter_l3_export_entity | string | trim | length > 0 %}
+      {{ 'custom_three_phase_import_export' }}
+    {% elif meter_import_entity | string | trim | length > 0
+          and meter_export_entity | string | trim | length > 0 %}
+      {{ 'import_export_pair' }}
+    {% elif meter_entity | string | trim | length > 0 %}
+      {{ 'custom_signed_total_power' }}
+    {% else %}
+      {{ 'custom_signed_total_power' }}
+    {% endif %}
+  effective_meter_power_source: >-
+    {% if meter_power_source | trim == 'auto' %}
+      {{ auto_meter_power_source | trim }}
+    {% else %}
+      {{ meter_power_source | trim }}
+    {% endif %}
 
 condition:
   - condition: template
     value_template: >-
-      {% set source = meter_power_source %}
+      {% set source = effective_meter_power_source | trim %}
       {% set bad = ['unknown', 'unavailable', 'none', ''] %}
       {% set signed_sources = [
         'shelly_total_power',
@@ -919,7 +946,7 @@ condition:
       {{ states(soc_entity | trim) not in ['unknown', 'unavailable', 'none', ''] }}
   - condition: template
     value_template: >-
-      {% set source = meter_power_source %}
+      {% set source = effective_meter_power_source | trim %}
       {% set limit = max_meter_age_s | float(30) %}
       {% set signed_sources = [
         'shelly_total_power',
@@ -1003,8 +1030,10 @@ action:
         - bitshake_tasmota_power
         - ecotracker_power
         - ecotracker_attribute_power
+        - custom_signed_total_power
+        - custom_three_phase_sum
       meter_raw_power_before_multiplier_w: >-
-        {% set source = meter_power_source %}
+        {% set source = effective_meter_power_source | trim %}
         {% if source in meter_signed_total_sources %}
           {{ states(meter_entity | trim) | float(0) }}
         {% elif source == 'ecotracker_attribute_power' %}
@@ -1030,10 +1059,11 @@ action:
         {{ (meter_raw_power_before_multiplier_w | float(0))
            * (meter_power_multiplier | float(1)) }}
       effective_meter_sign_mode: >-
-        {% if meter_power_source == 'import_export_pair' or meter_power_source in meter_phase_pair_sources %}
+        {% set source = effective_meter_power_source | trim %}
+        {% if source == 'import_export_pair' or source in meter_phase_pair_sources %}
           {{ 'export_positive' }}
         {% elif meter_sign_mode == 'auto_from_preset' %}
-          {% if meter_power_source in meter_import_positive_presets %}
+          {% if source in meter_import_positive_presets %}
             {{ 'import_positive' }}
           {% else %}
             {{ 'export_positive' }}

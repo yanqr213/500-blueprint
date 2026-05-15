@@ -23,11 +23,22 @@ does not expose that entity.
 
 ## Home Assistant Import URL
 
-Use this raw URL when importing the blueprint:
+Use this CDN URL when importing the blueprint:
+
+```text
+https://cdn.jsdelivr.net/gh/yanqr213/500-blueprint@main/blueprints/automation/sunenergyxt/zero_feed_in_external_meter.yaml
+```
+
+Raw GitHub URL:
 
 ```text
 https://raw.githubusercontent.com/yanqr213/500-blueprint/main/blueprints/automation/sunenergyxt/zero_feed_in_external_meter.yaml
 ```
+
+The main setup screen asks for only the meter device, the SunEnergyXT device,
+SOC lower/upper limits, full-battery behavior, and maximum on-grid output
+power. Use 800 W for SunEnergyXT 500 and 2400 W for SunEnergyXT 500 Pro unless
+a stricter local limit is required.
 
 ## Local Checks
 

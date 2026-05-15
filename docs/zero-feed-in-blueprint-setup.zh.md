@@ -33,7 +33,7 @@
 
 ### 1.2 确认外部电表实体
 
-进入 Home Assistant 的设备页面，确认外部电表作为一个设备存在。蓝图创建自动化时只需要选择 `External meter device` 和 `External meter preset`，会按预设从该设备下自动寻找实时功率实体。
+进入 Home Assistant 的设备页面，确认外部电表作为一个设备存在。蓝图创建自动化时只需要选择 `External meter device`，会自动从该设备下寻找实时功率实体。
 
 电表侧需要的是实时功率，不是累计电量。单位通常是 `W`，如果插件提供的是 `kW`，可在折叠的 `Advanced meter settings` 中把 `External meter power multiplier` 设置为 `1000` 转成 `W`。
 
@@ -44,7 +44,7 @@
 | 正数 | 家庭向电网馈电 / 外送 |
 | 负数 | 家庭从电网购电 / 市电输入 |
 
-用户不需要自己把所有电表都改成这个方向，只需要在蓝图里选对电表预设。符号方向默认自动判断；如果现场方向反了，再展开 `Advanced meter settings` 修改 `Meter sign convention`。
+用户不需要自己把所有电表都改成这个方向。符号方向默认自动判断；如果现场方向反了，再展开 `Advanced meter settings` 修改 `Meter sign convention`。
 
 ## 2. 导入蓝图
 
@@ -105,22 +105,25 @@
 
 点击创建自动化。
 
-## 5. 配置外部电表
+## 5. 用户需要配置的项
 
-### 5.1 选择设备和电表预设
+### 5.1 主界面只需要填写这些
 
-创建蓝图自动化时，主界面只显示设备、电表预设和基础控制目标：
+创建蓝图自动化时，主界面只需要填写：
 
 | 蓝图项 | 选择 |
 | --- | --- |
-| `SunEnergyXT device` | 选择同一台 SunEnergyXT 500 / 500 Pro 一体机设备 |
-| `External meter device` | 选择 Shelly、BitShake / Tasmota、EcoTracker 或其他外部电表设备 |
-| `External meter preset` | 按电表实体形态选择对应预设 |
-| `Target grid power` | 通常保持 `0 W` |
-| `Maximum on-grid output power` | 500 填 `800 W`，500 Pro 填 `2400 W` |
+| `External meter device` | 选择电表设备 |
+| `SunEnergyXT device` | 选择 SunEnergyXT 500 / 500 Pro 一体机设备 |
+| `SOC lower limit` / `SOC upper limit` | 设置电池 SOC 下限和上限 |
 | `Full-battery behavior` | 按满电后策略选择 `Follow load after full` 或 `Follow PV after full` |
+| `Maximum on-grid output power` | 500 最大 `800 W`；500 Pro 最大 `2400 W`。如当地法规或现场要求更低，填更低值 |
 
-在 `External meter preset` 中选择你的电表类型：
+`Target grid power` 默认就是 `0 W`，普通用户不需要配置。电表类型默认自动识别，普通用户也不需要选择电表预设。
+
+### 5.2 电表自动识别和高级预设
+
+蓝图会按电表设备下的实体自动判断常见形态：
 
 | 电表或插件形态 | 推荐预设 | 自动绑定说明 |
 | --- | --- | --- |
@@ -135,7 +138,9 @@
 | 其他总 import/export 功率对 | `Custom import/export power pair` | 自动找 import/export 功率对；不准时用高级覆盖 |
 | 其他三相 import/export 功率对 | `Custom L1-L3 import/export pair` | 自动找三相 import/export；不准时用高级覆盖 |
 
-### 5.2 配置电表符号方向
+如果自动识别不准，再展开 `Advanced meter settings`，把 `External meter preset override` 从 `Auto-detect from meter device` 改成对应预设。
+
+### 5.3 配置电表符号方向
 
 `Meter sign convention` 默认选择：
 
@@ -154,7 +159,7 @@ Auto from selected preset
 
 如果使用 import/export pair 预设，蓝图会直接按 `export - import` 计算，符号方向选项不会影响结果。
 
-### 5.3 配置单位倍率
+### 5.4 配置单位倍率
 
 `External meter power multiplier` 用于统一单位：
 
@@ -177,15 +182,15 @@ Auto from selected preset
 
 ## 7. 配置控制目标和限制
 
-### 7.1 零馈电目标
+### 7.1 高级：零馈电目标
 
-`Target grid power` 通常设置为：
+`Target grid power` 默认隐藏在 `Advanced control settings` 中，默认值就是：
 
 ```text
 0 W
 ```
 
-含义是让外部电表读数尽量收敛到 `0W`。
+含义是让外部电表读数尽量收敛到 `0W`。普通零馈电场景不用改。
 
 如果希望保留轻微购电，可以设置为负数，例如：
 
@@ -210,7 +215,7 @@ Auto from selected preset
 
 如果当地法规或现场安装要求更低，应填写更低值。
 
-### 7.3 GS 下限
+### 7.3 高级：GS 下限
 
 `GS lower limit` 控制允许的最大市电输入 / AC 侧吸收能力。
 
@@ -261,7 +266,7 @@ Follow load after full
 Follow PV after full
 ```
 
-### 7.6 ACCouple 最大充电功率
+### 7.6 高级：ACCouple 最大充电功率
 
 `AC-coupled maximum charge power` 用于限制通过 AC 侧吸收外部多余功率的能力。
 
@@ -321,7 +326,7 @@ Follow PV after full
 | 家里正在购电 | 应被蓝图识别为负数 |
 | 家里正在馈电 | 应被蓝图识别为正数 |
 
-如果选择的是预设并保持 `Auto from selected preset`，通常不需要调整。
+默认自动识别电表形态并保持 `Auto from selected preset` 时，通常不需要调整。
 
 如果方向反了，修改 `Meter sign convention`。
 
@@ -331,7 +336,7 @@ Follow PV after full
 
 | 实体 | 正常现象 |
 | --- | --- |
-| 外部电表实时功率 | 逐步接近 `Target grid power` |
+| 外部电表实时功率 | 逐步接近 `0 W` |
 | `GS` | 会随外部电表误差上下调整 |
 | `IS` | 会根据负载口、并网口、满电策略和 SOC 限制调整 |
 | `PB` | 原始 API 电池功率字段；当前 HA 插件未暴露为可选实体，蓝图不依赖 |
@@ -354,14 +359,14 @@ Follow PV after full
 
 ### 11.1 Shelly 3EM 只有三相功率
 
-配置：
+如果自动识别不准，再展开高级设置这样配置：
 
 | 蓝图项 | 选择 |
 | --- | --- |
-| `External meter preset` | `Shelly 3EM / Pro 3EM L1 + L2 + L3` |
-| `External meter L1 power sensor` | Shelly L1 power |
-| `External meter L2 power sensor` | Shelly L2 power |
-| `External meter L3 power sensor` | Shelly L3 power |
+| `External meter preset override` | `Shelly 3EM / Pro 3EM L1 + L2 + L3` |
+| `Override meter L1 power sensor` | Shelly L1 power |
+| `Override meter L2 power sensor` | Shelly L2 power |
+| `Override meter L3 power sensor` | Shelly L3 power |
 | `Meter sign convention` | 先用 `Auto from selected preset` |
 | `External meter power multiplier` | `1` |
 
@@ -369,13 +374,13 @@ Follow PV after full
 
 ### 11.2 Shelly 3EM 有三相 import/export
 
-配置：
+如果自动识别不准，再展开高级设置这样配置：
 
 | 蓝图项 | 选择 |
 | --- | --- |
-| `External meter preset` | `Shelly 3EM / Pro 3EM L1-L3 import/export` |
-| `L1/L2/L3 import power sensor` | 每相进口 / consumption 实体 |
-| `L1/L2/L3 export power sensor` | 每相回送 / returned 实体 |
+| `External meter preset override` | `Shelly 3EM / Pro 3EM L1-L3 import/export` |
+| `Override meter L1/L2/L3 import power sensor` | 每相进口 / consumption 实体 |
+| `Override meter L1/L2/L3 export power sensor` | 每相回送 / returned 实体 |
 | `External meter power multiplier` | `1` |
 
 该模式内部直接计算：
@@ -386,12 +391,12 @@ Follow PV after full
 
 ### 11.3 BitShake / Tasmota
 
-配置：
+如果自动识别不准，再展开高级设置这样配置：
 
 | 蓝图项 | 选择 |
 | --- | --- |
-| `External meter preset` | `BitShake / Tasmota current power` |
-| `External meter total/current power entity` | Tasmota / BitShake 当前功率实体 |
+| `External meter preset override` | `BitShake / Tasmota current power` |
+| `Override meter total/current power sensor` | Tasmota / BitShake 当前功率实体 |
 | `Meter sign convention` | 先用 `Auto from selected preset` |
 | `External meter power multiplier` | `1` 或按实体单位设置 |
 
@@ -403,15 +408,15 @@ Follow PV after full
 
 | 蓝图项 | 选择 |
 | --- | --- |
-| `External meter preset` | `EcoTracker current power entity` |
-| `External meter total/current power entity` | EcoTracker 当前功率实体 |
+| `External meter preset override` | `EcoTracker current power entity` |
+| `Override meter total/current power sensor` | EcoTracker 当前功率实体 |
 
 如果 EcoTracker 功率在某个实体属性里：
 
 | 蓝图项 | 选择 |
 | --- | --- |
-| `External meter preset` | `EcoTracker raw entity attribute` |
-| `External meter total/current power entity` | EcoTracker 原始实体 |
+| `External meter preset override` | `EcoTracker raw entity attribute` |
+| `Override meter total/current power sensor` | EcoTracker 原始实体 |
 | `External meter power attribute` | 功率属性名，默认 `power` |
 
 ## 12. 建议初始参数
@@ -420,35 +425,27 @@ SunEnergyXT 500：
 
 | 配置项 | 建议值 |
 | --- | --- |
-| `Target grid power` | `0 W` |
-| `GS lower limit` | `-2400 W` |
 | `Maximum on-grid output power` | `800 W` |
 | `SOC lower limit` | `10%` |
 | `SOC upper limit` | `90%` 或 `100%` |
-| `SOC hysteresis` | `2%` 到 `5%` |
 | `Full-battery behavior` | `Follow load after full` |
-| `AC-coupled maximum charge power` | `2400 W` |
 
 SunEnergyXT 500 Pro：
 
 | 配置项 | 建议值 |
 | --- | --- |
-| `Target grid power` | `0 W` |
-| `GS lower limit` | `-2400 W` |
 | `Maximum on-grid output power` | `2400 W` |
 | `SOC lower limit` | `10%` |
 | `SOC upper limit` | `90%` 或 `100%` |
-| `SOC hysteresis` | `2%` 到 `5%` |
 | `Full-battery behavior` | `Follow load after full` |
-| `AC-coupled maximum charge power` | `2400 W` |
 
 ## 13. 排查方向
 
 | 现象 | 优先检查 |
 | --- | --- |
 | 越调越偏 | 电表符号方向是否反了 |
-| 完全不动作 | 必填实体是否 `unknown` / `unavailable`，蓝图是否因为超时停止 |
-| Shelly 3EM 数据不对 | 是否选错了总功率、三相求和、三相 import/export 预设 |
+| 完全不动作 | 是否已选择电表和一体机，关键实体是否 `unknown` / `unavailable`，蓝图是否因为超时停止 |
+| Shelly 3EM 数据不对 | 自动识别是否选错形态；必要时用 `External meter preset override` 指定总功率、三相求和或三相 import/export |
 | 频繁跳变 | 写入间隔是否过短，`Small-error threshold` 和 `GS write resolution` 是否过小 |
 | 满电后行为不符合预期 | `Full-battery behavior` 是否选对，SOC 上限和回差是否合理；如配置了可选 Helper，再看满电 Helper 状态 |
 | 低 SOC 仍在放电 | SOC 下限和回差是否合理；如配置了可选 Helper，再看低 SOC Helper 状态 |
