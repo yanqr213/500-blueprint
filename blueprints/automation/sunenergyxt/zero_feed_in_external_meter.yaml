@@ -1388,7 +1388,7 @@ action:
           {{ [(positive_load_power_w | float(0)) - ([positive_load_power_w | float(0), [current_is_w | float(0), inverter_rated_w | float(2400)] | min] | min), 0] | max }}
         {% endif %}
       estimated_home_load_w: >-
-        {{ (gp_power_w | float(0)) - (normalized_grid_w | float(0)) - (load_port_grid_supply_w | float(0)) }}
+        {{ (gp_power_w | float(0)) - (normalized_grid_w | float(0)) }}
 
   - variables:
       load_grid_supply_target_w: >-
@@ -1451,6 +1451,9 @@ action:
         {{ low_hold_state | bool(false) }}
       needs_grid_absorption: >-
         {{ ((target_grid_power_w | float(0)) + (estimated_home_load_w | float(0))) < 0 }}
+      lp_load_import_guard: >-
+        {{ (positive_load_power_w | float(0)) > 0
+           and (normalized_grid_w | float(0)) < ((target_grid_power_w | float(0)) - (state_mismatch_threshold_w | float(30))) }}
 
   - variables:
       charge_limited_gs_min_w: >-
@@ -1462,6 +1465,8 @@ action:
         {% if bypass_only | bool(false) %}
           {{ 0 }}
         {% elif (load_port_backfeed_w | float(0)) > 0 and not (needs_grid_absorption | bool(false)) %}
+          {{ [configured_min, 0] | max }}
+        {% elif lp_load_import_guard | bool(false) %}
           {{ [configured_min, 0] | max }}
         {% elif charge_blocked_by_soc | bool(false) %}
           {{ [configured_min, 0] | max }}

@@ -1540,6 +1540,29 @@
         : snapshot.targetGrid + snapshot.homeLoad + loadGridSupplyTarget;
     }
 
+    function controllerGridPortPower(ports) {
+      return ports.gridPortOutput - ports.loadPortGridSupply;
+    }
+
+    function controllerEstimatedHomeLoad(ports) {
+      return controllerGridPortPower(ports) - ports.meterPower;
+    }
+
+    function controllerLoadGridSupplyTarget(snapshot, effectiveLoadPort, estimatedHomeLoad) {
+      const positiveLoadPort = Math.max(effectiveLoadPort, 0);
+      return positiveLoadPort > 0
+        ? clamp(snapshot.targetGrid - estimatedHomeLoad, 0, positiveLoadPort)
+        : 0;
+    }
+
+    function controllerGridDemandForZeroFeed(snapshot, effectiveLoadPort, estimatedHomeLoad) {
+      const loadPortBackfeed = Math.max(-effectiveLoadPort, 0);
+      const loadGridSupplyTarget = controllerLoadGridSupplyTarget(snapshot, effectiveLoadPort, estimatedHomeLoad);
+      return loadPortBackfeed > 0
+        ? snapshot.targetGrid + estimatedHomeLoad
+        : snapshot.targetGrid + estimatedHomeLoad + loadGridSupplyTarget;
+    }
+
     function pvBypassCoversGridDemand(snapshot, effectiveLoadPort) {
       if (snapshot.fullBatteryMode !== "follow_pv" || !snapshot.fullChargeHold) {
         return false;
@@ -1676,8 +1699,10 @@
       const loadPortBackfeeding = ports.loadPortBackfeed > 0;
       const loadAbsorbingAvailable = positiveLoadPort > 0;
       const controlledByIs = ports.loadPortFromInverter;
+      const controlGridPortPower = controllerGridPortPower(ports);
+      const estimatedHomeLoad = controllerEstimatedHomeLoad(ports);
       const loadGridSupplyTarget = loadAbsorbingAvailable
-        ? clamp(targetGrid - snapshot.homeLoad, 0, positiveLoadPort)
+        ? controllerLoadGridSupplyTarget(snapshot, loadPortPowerForControl, estimatedHomeLoad)
         : 0;
       const desiredControlled = loadAbsorbingAvailable
         ? positiveLoadPort - loadGridSupplyTarget
@@ -1688,9 +1713,15 @@
       const chargeBlocked = snapshot.fullChargeHold;
       const dischargeBlocked = snapshot.lowDischargeHold;
 
-      const needsGridAbsorption = targetGrid + snapshot.homeLoad < 0;
+      const needsGridAbsorption = targetGrid + estimatedHomeLoad < 0;
+      const lpLoadImportGuard = positiveLoadPort > 0
+        && ports.meterPower < targetGrid - Math.max(params.smallErrorW, 30);
 
       if (loadPortBackfeeding && !needsGridAbsorption) {
+        gsMin = Math.max(gsMin, 0);
+      }
+
+      if (lpLoadImportGuard) {
         gsMin = Math.max(gsMin, 0);
       }
 
@@ -1707,7 +1738,7 @@
         gsMax = 0;
       }
 
-      const rawTargetGs = gridDemandForZeroFeed(snapshot, loadPortPowerForControl);
+      const rawTargetGs = controllerGridDemandForZeroFeed(snapshot, loadPortPowerForControl, estimatedHomeLoad);
       // IS is the inverter total output ceiling. Hardware feeds the load port first,
       // so the controller must reserve enough IS for both load-port output and GP.
       const rawTargetIs = desiredControlled + Math.max(rawTargetGs, 0);
@@ -1782,6 +1813,8 @@
         targetGs,
         rawTargetIs,
         rawTargetGs,
+        controlGridPortPower,
+        estimatedHomeLoad,
         loadGridSupplyTarget,
         nextGs,
         canWriteGs,
@@ -1789,6 +1822,7 @@
         dischargeBlocked,
         loadPortBackfeeding,
         needsGridAbsorption,
+        lpLoadImportGuard,
         bypassOnly: ports.bypassOnly
       };
     }
@@ -2096,6 +2130,7 @@
         ["外部电表误差", fmt(controller.error)],
         ["IS 中已给负载口的功率", fmt(controller.controlledByIs)],
         ["负载口由市电补足目标", fmt(controller.loadGridSupplyTarget)],
+        ["控制用 GP 传感器口径", fmt(controller.controlGridPortPower)],
         ["GS 原始目标", fmt(controller.rawTargetGs)],
         ["IS 原始目标", fmt(controller.rawTargetIs)],
         ["IS 目标总输出", fmt(controller.targetIs)],
