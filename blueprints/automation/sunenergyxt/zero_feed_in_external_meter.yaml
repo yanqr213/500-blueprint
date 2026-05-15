@@ -411,6 +411,22 @@ blueprint:
               unit_of_measurement: s
               mode: box
 
+        gs_feedback_settle_s:
+          name: GS feedback settle time
+          description: >
+            Minimum time after a GS write before the next GS write. The
+            automation also waits for fresh GP and meter samples after the last
+            GS change. The default matches observed SunEnergyXT GP feedback
+            latency and reduces hunting when an external device changes output.
+          default: 8
+          selector:
+            number:
+              min: 1
+              max: 30
+              step: 1
+              unit_of_measurement: s
+              mode: box
+
         small_max_step_w:
           name: Small-error max adjustment
           default: 20
@@ -435,7 +451,7 @@ blueprint:
 
         fast_max_step_w:
           name: Large-error max adjustment
-          default: 500
+          default: 300
           selector:
             number:
               min: 50
@@ -559,6 +575,7 @@ variables:
   slow_interval_s: !input slow_interval_s
   medium_interval_s: !input medium_interval_s
   fast_interval_s: !input fast_interval_s
+  gs_feedback_settle_s: !input gs_feedback_settle_s
   small_max_step_w: !input small_max_step_w
   medium_max_step_w: !input medium_max_step_w
   fast_max_step_w: !input fast_max_step_w
@@ -1077,6 +1094,27 @@ action:
       meter_raw_w: >-
         {{ (meter_raw_power_before_multiplier_w | float(0))
            * (meter_power_multiplier | float(1)) }}
+      meter_control_sample_ts: >-
+        {% set source = effective_meter_power_source | trim %}
+        {% if source in meter_signed_total_sources or source == 'ecotracker_attribute_power' %}
+          {{ as_timestamp(states[meter_entity | trim].last_updated, 0) }}
+        {% elif source in meter_phase_sum_sources %}
+          {{ [as_timestamp(states[meter_l1_entity | trim].last_updated, 0),
+              as_timestamp(states[meter_l2_entity | trim].last_updated, 0),
+              as_timestamp(states[meter_l3_entity | trim].last_updated, 0)] | max }}
+        {% elif source == 'import_export_pair' %}
+          {{ [as_timestamp(states[meter_import_entity | trim].last_updated, 0),
+              as_timestamp(states[meter_export_entity | trim].last_updated, 0)] | max }}
+        {% elif source in meter_phase_pair_sources %}
+          {{ [as_timestamp(states[meter_l1_import_entity | trim].last_updated, 0),
+              as_timestamp(states[meter_l2_import_entity | trim].last_updated, 0),
+              as_timestamp(states[meter_l3_import_entity | trim].last_updated, 0),
+              as_timestamp(states[meter_l1_export_entity | trim].last_updated, 0),
+              as_timestamp(states[meter_l2_export_entity | trim].last_updated, 0),
+              as_timestamp(states[meter_l3_export_entity | trim].last_updated, 0)] | max }}
+        {% else %}
+          {{ 0 }}
+        {% endif %}
       effective_meter_sign_mode: >-
         {% set source = effective_meter_power_source | trim %}
         {% if source == 'import_export_pair' or source in meter_phase_pair_sources %}
@@ -1422,10 +1460,19 @@ action:
   - variables:
       seconds_since_gs_change: >-
         {{ as_timestamp(now()) - as_timestamp(states[gs_entity | trim].last_changed, 0) }}
+      gs_last_change_ts: "{{ as_timestamp(states[gs_entity | trim].last_changed, 0) }}"
+      gp_sample_after_gs_change: >-
+        {{ as_timestamp(states[gp_entity | trim].last_updated, 0) > (gs_last_change_ts | float(0)) }}
+      meter_sample_after_gs_change: >-
+        {{ (meter_control_sample_ts | float(0)) > (gs_last_change_ts | float(0)) }}
+      gs_feedback_interval_s: >-
+        {{ [required_interval_s | float(1), gs_feedback_settle_s | float(4)] | max }}
 
   - variables:
       should_write_gs: >-
-        {{ (seconds_since_gs_change | float(999)) >= (required_interval_s | float(1))
+        {{ (seconds_since_gs_change | float(999)) >= (gs_feedback_interval_s | float(8))
+           and (gp_sample_after_gs_change | bool(false))
+           and (meter_sample_after_gs_change | bool(false))
            and (next_gs_w | float(0)) != (current_gs_w | float(0)) }}
 
   - choose:
