@@ -1111,6 +1111,30 @@ action:
            and states(pv_entity | trim) not in ['unknown', 'unavailable', 'none', ''] }}
 
   - variables:
+      gs_entity_min_w: >-
+        {% if gs_entity | string | trim | length > 0 %}
+          {{ state_attr(gs_entity | trim, 'min') | float(gs_min_w | float(-2400)) }}
+        {% else %}
+          {{ gs_min_w | float(-2400) }}
+        {% endif %}
+      gs_entity_max_w: >-
+        {% if gs_entity | string | trim | length > 0 %}
+          {{ state_attr(gs_entity | trim, 'max') | float(gs_max_w | float(2400)) }}
+        {% else %}
+          {{ gs_max_w | float(2400) }}
+        {% endif %}
+      is_entity_min_w: >-
+        {% if has_is | bool(false) %}
+          {{ state_attr(is_entity | trim, 'min') | float(0) }}
+        {% else %}
+          {{ 0 }}
+        {% endif %}
+      is_entity_max_w: >-
+        {% if has_is | bool(false) %}
+          {{ state_attr(is_entity | trim, 'max') | float(inverter_rated_w | float(2400)) }}
+        {% else %}
+          {{ inverter_rated_w | float(2400) }}
+        {% endif %}
       normalized_grid_w: >-
         {{ (meter_raw_w | float(0)) * (meter_factor | float(1)) }}
       soc_value: >-
@@ -1285,7 +1309,8 @@ action:
   - variables:
       charge_limited_gs_min_w: >-
         {% set configured_min = gs_min_w | float(-2400) %}
-        {{ [configured_min, -1 * (ac_couple_max_charge_power_w | float(2400))] | max }}
+        {% set entity_min = gs_entity_min_w | float(configured_min) %}
+        {{ [configured_min, entity_min, -1 * (ac_couple_max_charge_power_w | float(2400))] | max }}
       effective_gs_min_w: >-
         {% set configured_min = charge_limited_gs_min_w | float(-2400) %}
         {% if bypass_only | bool(false) %}
@@ -1298,7 +1323,7 @@ action:
           {{ configured_min }}
         {% endif %}
       effective_gs_max_w: >-
-        {% set configured_max = gs_max_w | float(2400) %}
+        {% set configured_max = [gs_max_w | float(2400), gs_entity_max_w | float(2400)] | min %}
         {% if bypass_only | bool(false) %}
           {{ 0 }}
         {% elif discharge_blocked_by_soc | bool(false) %}
@@ -1327,7 +1352,9 @@ action:
           {{ pre_soc_target_is_w | float(0) }}
         {% endif %}
       target_is_w: >-
-        {{ [[unclamped_target_is_w | float(0), 0] | max, inverter_rated_w | float(2400)] | min }}
+        {% set low = is_entity_min_w | float(0) %}
+        {% set high = [is_entity_max_w | float(inverter_rated_w | float(2400)), inverter_rated_w | float(2400)] | min %}
+        {{ [[unclamped_target_is_w | float(0), low] | max, high] | min }}
       gs_error_w: >-
         {{ (target_gs_w | float(0)) - (current_gs_w | float(0)) }}
       is_error_w: >-
@@ -1349,7 +1376,9 @@ action:
       next_is_w: >-
         {% set resolution = [is_resolution_w | float(10), 1] | max %}
         {% set rounded = (((target_is_w | float(0)) / resolution) | round(0) * resolution) | float(0) %}
-        {{ [[rounded, 0] | max, inverter_rated_w | float(2400)] | min | round(0) }}
+        {% set low = is_entity_min_w | float(0) %}
+        {% set high = [is_entity_max_w | float(inverter_rated_w | float(2400)), inverter_rated_w | float(2400)] | min %}
+        {{ [[rounded, low] | max, high] | min | round(0) }}
       seconds_since_is_change: >-
         {% if has_is | bool(false) %}
           {{ as_timestamp(now()) - as_timestamp(states[is_entity | trim].last_changed, 0) }}
@@ -1449,6 +1478,7 @@ action:
             value_template: "{{ should_write_is }}"
         sequence:
           - service: number.set_value
+            continue_on_error: true
             target:
               entity_id: "{{ is_entity | trim }}"
             data:
