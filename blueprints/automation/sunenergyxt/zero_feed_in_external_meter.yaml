@@ -71,24 +71,6 @@ blueprint:
                 - label: Custom L1-L3 import/export pair
                   value: custom_three_phase_import_export
 
-        full_charge_hold_helper:
-          name: Full-charge hold helper
-          description: >
-            Select an input_boolean helper dedicated to this automation. It
-            stores the automation-side full-charge state.
-          selector:
-            entity:
-              domain: input_boolean
-
-        low_discharge_hold_helper:
-          name: Low-SOC hold helper
-          description: >
-            Select an input_boolean helper dedicated to this automation. It
-            stores the automation-side low-SOC state.
-          selector:
-            entity:
-              domain: input_boolean
-
     basic_targets:
       name: Basic targets
       icon: mdi:tune
@@ -121,6 +103,17 @@ blueprint:
               step: 1
               unit_of_measurement: W
               mode: box
+
+        full_battery_mode:
+          name: Full-battery behavior
+          default: follow_load
+          selector:
+            select:
+              options:
+                - label: Follow load after full
+                  value: follow_load
+                - label: Follow PV after full
+                  value: follow_pv
 
     advanced_entity_overrides:
       name: Advanced entity overrides
@@ -472,17 +465,6 @@ blueprint:
               unit_of_measurement: "%"
               mode: box
 
-        full_battery_mode:
-          name: Full-battery behavior
-          default: follow_load
-          selector:
-            select:
-              options:
-                - label: Follow load after full
-                  value: follow_load
-                - label: Follow PV after full
-                  value: follow_pv
-
         ac_couple_max_charge_power_w:
           name: AC-coupled maximum charge power
           default: 2400
@@ -504,6 +486,28 @@ blueprint:
               step: 1
               unit_of_measurement: W
               mode: box
+
+        full_charge_hold_helper:
+          name: Optional full-charge hold helper
+          description: >
+            Optional. Leave blank unless you want the automation to remember
+            full-charge hold state across restarts. Without this helper, the
+            automation derives full-charge hold directly from current SOC.
+          default: ""
+          selector:
+            entity:
+              domain: input_boolean
+
+        low_discharge_hold_helper:
+          name: Optional low-SOC hold helper
+          description: >
+            Optional. Leave blank unless you want the automation to remember
+            low-SOC hold state across restarts. Without this helper, the
+            automation derives low-SOC hold directly from current SOC.
+          default: ""
+          selector:
+            entity:
+              domain: input_boolean
 
 mode: single
 max_exceeded: silent
@@ -1093,8 +1097,16 @@ action:
 
   - variables:
       soc_hysteresis_value: "{{ [soc_hysteresis | float(2), 0] | max }}"
-      current_full_hold_state: "{{ is_state(full_hold_entity, 'on') }}"
-      current_low_hold_state: "{{ is_state(low_hold_entity, 'on') }}"
+      has_full_hold_helper: >-
+        {{ full_hold_entity | string | trim | length > 0 }}
+      has_low_hold_helper: >-
+        {{ low_hold_entity | string | trim | length > 0 }}
+      current_full_hold_state: >-
+        {{ has_full_hold_helper | bool(false)
+           and is_state(full_hold_entity | trim, 'on') }}
+      current_low_hold_state: >-
+        {{ has_low_hold_helper | bool(false)
+           and is_state(low_hold_entity | trim, 'on') }}
       state_mismatch_threshold_w: "{{ [small_error_w | float(30), 30] | max }}"
       full_hold_state: >-
         {% set soc = soc_value | float(50) %}
@@ -1103,6 +1115,8 @@ action:
         {% if soc >= upper %}
           {{ true }}
         {% elif soc <= release %}
+          {{ false }}
+        {% elif not (has_full_hold_helper | bool(false)) %}
           {{ false }}
         {% else %}
           {{ current_full_hold_state | bool(false) }}
@@ -1114,6 +1128,8 @@ action:
         {% if soc <= lower %}
           {{ true }}
         {% elif soc >= release %}
+          {{ false }}
+        {% elif not (has_low_hold_helper | bool(false)) %}
           {{ false }}
         {% else %}
           {{ current_low_hold_state | bool(false) }}
@@ -1337,34 +1353,46 @@ action:
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ full_hold_state | bool(false) and not (current_full_hold_state | bool(false)) }}"
+            value_template: >-
+              {{ has_full_hold_helper | bool(false)
+                 and full_hold_state | bool(false)
+                 and not (current_full_hold_state | bool(false)) }}
         sequence:
           - service: input_boolean.turn_on
             target:
-              entity_id: "{{ full_hold_entity }}"
+              entity_id: "{{ full_hold_entity | trim }}"
       - conditions:
           - condition: template
-            value_template: "{{ not (full_hold_state | bool(false)) and current_full_hold_state | bool(false) }}"
+            value_template: >-
+              {{ has_full_hold_helper | bool(false)
+                 and not (full_hold_state | bool(false))
+                 and current_full_hold_state | bool(false) }}
         sequence:
           - service: input_boolean.turn_off
             target:
-              entity_id: "{{ full_hold_entity }}"
+              entity_id: "{{ full_hold_entity | trim }}"
 
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ low_hold_state | bool(false) and not (current_low_hold_state | bool(false)) }}"
+            value_template: >-
+              {{ has_low_hold_helper | bool(false)
+                 and low_hold_state | bool(false)
+                 and not (current_low_hold_state | bool(false)) }}
         sequence:
           - service: input_boolean.turn_on
             target:
-              entity_id: "{{ low_hold_entity }}"
+              entity_id: "{{ low_hold_entity | trim }}"
       - conditions:
           - condition: template
-            value_template: "{{ not (low_hold_state | bool(false)) and current_low_hold_state | bool(false) }}"
+            value_template: >-
+              {{ has_low_hold_helper | bool(false)
+                 and not (low_hold_state | bool(false))
+                 and current_low_hold_state | bool(false) }}
         sequence:
           - service: input_boolean.turn_off
             target:
-              entity_id: "{{ low_hold_entity }}"
+              entity_id: "{{ low_hold_entity | trim }}"
 
   - choose:
       - conditions:

@@ -19,7 +19,7 @@
 确认 SunEnergyXT 一体机设备存在，并且设备下至少有以下实体：
 
 | 实体 | 用途 |
-| --- | --- | --- |
+| --- | --- |
 | `System Grid Port Power Setpoint` / `GS` | 并网口功率设定，蓝图主要控制目标 |
 | `System Max Inverter Power Setpoint` / `IS` | 逆变器总输出上限 |
 | `System Load Port Power` / `LP` | 一体机负载口实时功率，正数为负载消耗，负数为负载口回灌 |
@@ -76,22 +76,22 @@
 
 填写蓝图文件的 GitHub raw URL，然后导入。
 
-## 3. 创建两个 Helper
+## 3. 可选 Helper
 
-蓝图需要两个 `input_boolean` 作为状态记忆，用来保存自动化侧的满电保持状态和低 SOC 保持状态。
+这两个 `input_boolean` 不是必填项，只是可选的状态记忆。
 
-进入：
+不创建、不配置也可以使用蓝图。此时蓝图会直接根据当前 SOC 判断满电保持和低 SOC 保持，不会要求你先准备 Helper。
+
+如果你希望 Home Assistant 重启或自动化重载后仍保留“满电保持 / 低 SOC 保持”的中间状态，可以再创建两个“开关”类型 Helper：
 
 `设置` -> `设备与服务` -> `辅助元素`
-
-创建两个“开关”类型 Helper：
 
 | Helper 名称建议 | 用途 |
 | --- | --- |
 | `SunEnergyXT Zero Feed-in Full Charge Hold` | 记录自动化侧满电保持状态 |
 | `SunEnergyXT Zero Feed-in Low SOC Hold` | 记录自动化侧低 SOC 保持状态 |
 
-这两个 Helper 平时不需要手动操作，由蓝图自动开关。
+创建后，在折叠的 `Advanced control settings` 里填入 `Optional full-charge hold helper` 和 `Optional low-SOC hold helper`。这两个 Helper 平时不需要手动操作，由蓝图自动开关。
 
 ## 4. 创建蓝图自动化
 
@@ -109,15 +109,16 @@
 
 ### 5.1 选择设备和电表预设
 
-创建蓝图自动化时，主界面只需要填写：
+创建蓝图自动化时，主界面只显示设备、电表预设和基础控制目标：
 
 | 蓝图项 | 选择 |
 | --- | --- |
 | `SunEnergyXT device` | 选择同一台 SunEnergyXT 500 / 500 Pro 一体机设备 |
 | `External meter device` | 选择 Shelly、BitShake / Tasmota、EcoTracker 或其他外部电表设备 |
 | `External meter preset` | 按电表实体形态选择对应预设 |
-| `Full-charge hold helper` | 第 3 步创建的满电 Helper |
-| `Low-SOC hold helper` | 第 3 步创建的低 SOC Helper |
+| `Target grid power` | 通常保持 `0 W` |
+| `Maximum on-grid output power` | 500 填 `800 W`，500 Pro 填 `2400 W` |
+| `Full-battery behavior` | 按满电后策略选择 `Follow load after full` 或 `Follow PV after full` |
 
 在 `External meter preset` 中选择你的电表类型：
 
@@ -336,9 +337,11 @@ Follow PV after full
 | `PB` | 原始 API 电池功率字段；当前 HA 插件未暴露为可选实体，蓝图不依赖 |
 | `LP` | 正数为负载口消耗，负数为负载口回灌 |
 
-### 10.3 检查满电和低 SOC helper
+### 10.3 检查满电和低 SOC 状态
 
-观察两个 Helper：
+如果没有配置可选 Helper，不需要检查任何 Helper 实体，直接观察 SOC、`GS`、`IS` 和满电后策略是否符合预期。
+
+如果配置了可选 Helper，可以观察：
 
 | Helper | 正常现象 |
 | --- | --- |
@@ -447,8 +450,8 @@ SunEnergyXT 500 Pro：
 | 完全不动作 | 必填实体是否 `unknown` / `unavailable`，蓝图是否因为超时停止 |
 | Shelly 3EM 数据不对 | 是否选错了总功率、三相求和、三相 import/export 预设 |
 | 频繁跳变 | 写入间隔是否过短，`Small-error threshold` 和 `GS write resolution` 是否过小 |
-| 满电后行为不符合预期 | `Full-battery behavior` 是否选对，满电 Helper 是否已打开 |
-| 低 SOC 仍在放电 | `Low-SOC hold helper` 是否配置，SOC 下限和回差是否合理 |
+| 满电后行为不符合预期 | `Full-battery behavior` 是否选对，SOC 上限和回差是否合理；如配置了可选 Helper，再看满电 Helper 状态 |
+| 低 SOC 仍在放电 | SOC 下限和回差是否合理；如配置了可选 Helper，再看低 SOC Helper 状态 |
 | 外部微逆回灌时异常 | 检查 `LP` 是否为负数，`AC-coupled maximum charge power` 和 `GS lower limit` 是否允许吸收 |
 
 ## 14. 重要提醒
