@@ -71,6 +71,47 @@ blueprint:
               unit_of_measurement: W
               mode: box
 
+        min_discharge_soc:
+          name: Fallback SOC lower limit
+          description: >
+            Used only if the SunEnergyXT device does not expose a min-discharge
+            SOC number entity. When the device entity exists, the automation
+            reads the device value directly.
+          default: 10
+          selector:
+            number:
+              min: 0
+              max: 100
+              step: 1
+              unit_of_measurement: "%"
+              mode: box
+
+        max_charge_soc:
+          name: Fallback SOC upper limit
+          description: >
+            Used only if the SunEnergyXT device does not expose a max-charge SOC
+            number entity. When the device entity exists, the automation reads
+            the device value directly.
+          default: 100
+          selector:
+            number:
+              min: 0
+              max: 100
+              step: 1
+              unit_of_measurement: "%"
+              mode: box
+
+        ac_couple_max_charge_power_w:
+          name: AC-coupled maximum charge power
+          default: 2400
+          selector:
+            number:
+              min: 0
+              max: 2400
+              step: 1
+              unit_of_measurement: W
+              mode: box
+
     advanced_entity_overrides:
       name: Advanced entity overrides
       icon: mdi:form-select
@@ -469,36 +510,6 @@ blueprint:
               unit_of_measurement: s
               mode: box
 
-        min_discharge_soc:
-          name: Fallback SOC lower limit
-          description: >
-            Used only if the SunEnergyXT device does not expose a min-discharge
-            SOC number entity. When the device entity exists, the automation
-            reads the device value directly.
-          default: 10
-          selector:
-            number:
-              min: 0
-              max: 100
-              step: 1
-              unit_of_measurement: "%"
-              mode: box
-
-        max_charge_soc:
-          name: Fallback SOC upper limit
-          description: >
-            Used only if the SunEnergyXT device does not expose a max-charge SOC
-            number entity. When the device entity exists, the automation reads
-            the device value directly.
-          default: 100
-          selector:
-            number:
-              min: 0
-              max: 100
-              step: 1
-              unit_of_measurement: "%"
-              mode: box
-
         soc_hysteresis:
           name: SOC hysteresis
           description: >
@@ -513,17 +524,6 @@ blueprint:
               max: 20
               step: 1
               unit_of_measurement: "%"
-              mode: box
-
-        ac_couple_max_charge_power_w:
-          name: AC-coupled maximum charge power
-          default: 2400
-          selector:
-            number:
-              min: 0
-              max: 2400
-              step: 1
-              unit_of_measurement: W
               mode: box
 
         is_resolution_w:
