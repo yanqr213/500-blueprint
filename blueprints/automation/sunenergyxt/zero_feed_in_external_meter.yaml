@@ -14,23 +14,69 @@ blueprint:
     min_version: "2024.6.0"
   source_url: https://github.com/yanqr213/500-blueprint/blob/main/blueprints/automation/sunenergyxt/zero_feed_in_external_meter.yaml
   input:
-    required_devices:
-      name: Required setup
-      icon: mdi:devices
+    meter_setup:
+      name: Meter setup
+      icon: mdi:meter-electric
       description: >
-        Select the external meter device and the SunEnergyXT all-in-one device.
-        The blueprint will auto-bind the matching entities from those devices.
+        Select the meter type first, then select the external meter device.
+        Shelly Pro 3EM, EcoTracker, and BitShake / Tasmota usually only need
+        the selected meter device. Shelly 3EM without a total power entity
+        should use the L1 + L2 + L3 type and fill the three phase entities
+        below. Custom meters should use the formula type that matches their
+        available entities.
       input:
+        meter_power_source:
+          name: Meter type / power formula
+          description: >
+            Select how the external meter reports power. Device-based types
+            read entities from the selected meter device. L1 + L2 + L3 types
+            add three phase power entities. Import/export types calculate
+            exported power minus imported power.
+          selector:
+            select:
+              options:
+                - label: Shelly Pro 3EM / EM / Pro EM device total power
+                  value: shelly_total_power
+                - label: EcoTracker device current power
+                  value: ecotracker_power
+                - label: BitShake / Tasmota device current power
+                  value: bitshake_tasmota_power
+                - label: Shelly 3EM L1 + L2 + L3 phase sum
+                  value: shelly_three_phase_sum
+                - label: Shelly 3EM L1-L3 import/export formula
+                  value: shelly_three_phase_import_export
+                - label: EcoTracker raw entity attribute formula
+                  value: ecotracker_attribute_power
+                - label: "Custom formula: signed total power"
+                  value: custom_signed_total_power
+                - label: "Custom formula: L1 + L2 + L3"
+                  value: custom_three_phase_sum
+                - label: "Custom formula: export - import"
+                  value: import_export_pair
+                - label: "Custom formula: L1-L3 export - import"
+                  value: custom_three_phase_import_export
+                - label: Auto-detect from meter device
+                  value: auto
+
         external_meter_device:
           name: External meter device
           description: >
             Select the external Home Assistant meter device, such as Shelly,
             BitShake / Tasmota, EcoTracker, or another meter integration.
+            For Shelly Pro 3EM, EcoTracker, and BitShake / Tasmota, this is
+            normally the only meter entity selection you need.
           selector:
             device:
               entity:
                 - domain: sensor
 
+    required_devices:
+      name: SunEnergyXT setup
+      icon: mdi:devices
+      description: >
+        Select the SunEnergyXT all-in-one device. The blueprint will auto-bind
+        the matching entities from this device.
+      input:
         aio_device:
           name: SunEnergyXT device
           description: >
@@ -43,6 +89,154 @@ blueprint:
             device:
               filter:
                 - integration: sunenergyxt
+
+    meter_entity_inputs:
+      name: Shelly 3EM and custom meter entities
+      icon: mdi:flash
+      collapsed: true
+      description: >
+        Expand this section for Shelly 3EM L1 + L2 + L3, EcoTracker raw
+        attribute, or custom meter formulas. Leave it blank for Shelly Pro 3EM,
+        EcoTracker device current power, and BitShake / Tasmota when the
+        selected meter device can be auto-bound.
+      input:
+        meter_power_sensor:
+          name: Total/current power sensor
+          description: >
+            Used by EcoTracker raw attribute and Custom formula: signed total
+            power.
+            Device-based total/current power types can usually leave this blank
+            because the blueprint reads the entity from the selected meter
+            device.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+
+        meter_power_attribute:
+          name: Meter power attribute
+          description: >
+            Only used by the EcoTracker raw entity attribute formula. The usual
+            attribute name is power.
+          default: power
+          selector:
+            text:
+
+        meter_l1_power_sensor:
+          name: L1 / phase A power sensor
+          description: >
+            Use this for Shelly 3EM L1 + L2 + L3 or Custom formula:
+            L1 + L2 + L3 when the selected meter device cannot auto-bind the
+            phase entity.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+
+        meter_l2_power_sensor:
+          name: L2 / phase B power sensor
+          description: >
+            Use this for Shelly 3EM L1 + L2 + L3 or Custom formula:
+            L1 + L2 + L3 when the selected meter device cannot auto-bind the
+            phase entity.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+
+        meter_l3_power_sensor:
+          name: L3 / phase C power sensor
+          description: >
+            Use this for Shelly 3EM L1 + L2 + L3 or Custom formula:
+            L1 + L2 + L3 when the selected meter device cannot auto-bind the
+            phase entity.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+
+    meter_import_export_inputs:
+      name: Import/export meter entities
+      icon: mdi:transmission-tower-export
+      collapsed: true
+      description: >
+        Expand only when the selected meter type uses an import/export formula.
+        Total import/export uses one import entity and one export entity.
+        L1-L3 import/export uses all six phase entities.
+      input:
+        meter_import_power_sensor:
+          name: Import power sensor
+          description: >
+            Used by Custom formula: export - import when there is one total
+            import power entity and one total export power entity.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+
+        meter_export_power_sensor:
+          name: Export power sensor
+          description: >
+            Used by Custom formula: export - import when there is one total
+            import power entity and one total export power entity.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+
+        meter_l1_import_power_sensor:
+          name: L1 / phase A import power sensor
+          description: >
+            Used by L1-L3 import/export meter types.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+
+        meter_l2_import_power_sensor:
+          name: L2 / phase B import power sensor
+          description: >
+            Used by L1-L3 import/export meter types.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+
+        meter_l3_import_power_sensor:
+          name: L3 / phase C import power sensor
+          description: >
+            Used by L1-L3 import/export meter types.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+
+        meter_l1_export_power_sensor:
+          name: L1 / phase A export power sensor
+          description: >
+            Used by L1-L3 import/export meter types.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+
+        meter_l2_export_power_sensor:
+          name: L2 / phase B export power sensor
+          description: >
+            Used by L1-L3 import/export meter types.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+
+        meter_l3_export_power_sensor:
+          name: L3 / phase C export power sensor
+          description: >
+            Used by L1-L3 import/export meter types.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
 
     basic_targets:
       name: User settings
@@ -180,146 +374,22 @@ blueprint:
             entity:
               domain: number
 
-        meter_power_sensor:
-          name: Override meter total/current power sensor
-          default: ""
-          selector:
-            entity:
-              domain: sensor
-
-        meter_l1_power_sensor:
-          name: Override meter L1 power sensor
-          default: ""
-          selector:
-            entity:
-              domain: sensor
-
-        meter_l2_power_sensor:
-          name: Override meter L2 power sensor
-          default: ""
-          selector:
-            entity:
-              domain: sensor
-
-        meter_l3_power_sensor:
-          name: Override meter L3 power sensor
-          default: ""
-          selector:
-            entity:
-              domain: sensor
-
-        meter_import_power_sensor:
-          name: Override meter import power sensor
-          default: ""
-          selector:
-            entity:
-              domain: sensor
-
-        meter_export_power_sensor:
-          name: Override meter export power sensor
-          default: ""
-          selector:
-            entity:
-              domain: sensor
-
-        meter_l1_import_power_sensor:
-          name: Override meter L1 import power sensor
-          default: ""
-          selector:
-            entity:
-              domain: sensor
-
-        meter_l2_import_power_sensor:
-          name: Override meter L2 import power sensor
-          default: ""
-          selector:
-            entity:
-              domain: sensor
-
-        meter_l3_import_power_sensor:
-          name: Override meter L3 import power sensor
-          default: ""
-          selector:
-            entity:
-              domain: sensor
-
-        meter_l1_export_power_sensor:
-          name: Override meter L1 export power sensor
-          default: ""
-          selector:
-            entity:
-              domain: sensor
-
-        meter_l2_export_power_sensor:
-          name: Override meter L2 export power sensor
-          default: ""
-          selector:
-            entity:
-              domain: sensor
-
-        meter_l3_export_power_sensor:
-          name: Override meter L3 export power sensor
-          default: ""
-          selector:
-            entity:
-              domain: sensor
-
     advanced_meter_settings:
-      name: Advanced meter settings
+      name: Advanced meter sign and unit settings
       icon: mdi:meter-electric
       collapsed: true
       input:
-        meter_power_source:
-          name: External meter preset override
-          description: >
-            Leave Auto-detect unless the meter device exposes unusual entities
-            and the auto-binding result is wrong.
-          default: auto
-          selector:
-            select:
-              options:
-                - label: Auto-detect from meter device
-                  value: auto
-                - label: Shelly EM / Pro EM / Pro 3EM total power
-                  value: shelly_total_power
-                - label: Shelly 3EM / Pro 3EM L1 + L2 + L3
-                  value: shelly_three_phase_sum
-                - label: Shelly 3EM / Pro 3EM L1-L3 import/export
-                  value: shelly_three_phase_import_export
-                - label: BitShake / Tasmota current power
-                  value: bitshake_tasmota_power
-                - label: EcoTracker current power entity
-                  value: ecotracker_power
-                - label: EcoTracker raw entity attribute
-                  value: ecotracker_attribute_power
-                - label: Custom signed total power
-                  value: custom_signed_total_power
-                - label: Custom L1 + L2 + L3 phase sum
-                  value: custom_three_phase_sum
-                - label: Custom import/export power pair
-                  value: import_export_pair
-                - label: Custom L1-L3 import/export pair
-                  value: custom_three_phase_import_export
-
-        meter_power_attribute:
-          name: External meter power attribute
-          description: >
-            Only used by the EcoTracker raw entity attribute preset. The usual
-            attribute name is power.
-          default: power
-          selector:
-            text:
-
         meter_sign_mode:
           name: Meter sign convention
           description: >
-            Auto uses the preset default. Use an explicit override if your CT
-            direction, script, or template reports the opposite sign.
+            Auto uses the selected meter type default. Use an explicit override
+            if your CT direction, script, or template reports the opposite
+            sign.
           default: auto_from_preset
           selector:
             select:
               options:
-                - label: Auto from selected preset
+                - label: Auto from selected meter type
                   value: auto_from_preset
                 - label: Export/feed-in is positive
                   value: export_positive

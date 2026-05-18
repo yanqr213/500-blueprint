@@ -43,9 +43,12 @@ Raw GitHub URL:
 https://raw.githubusercontent.com/yanqr213/500-blueprint/main/blueprints/automation/sunenergyxt/zero_feed_in_external_meter.yaml
 ```
 
-The main setup screen asks for only the meter device, the SunEnergyXT device,
-`System Min Discharge SOC`, `System Max Charge SOC`, full-battery behavior, and
-maximum on-grid output power. Use 800 W for SunEnergyXT 500 and 2400 W for
+The main setup screen asks for the meter type / power formula, the meter
+device, the SunEnergyXT device, `System Min Discharge SOC`, `System Max Charge
+SOC`, full-battery behavior, and maximum on-grid output power. Shelly Pro 3EM,
+EcoTracker, and BitShake / Tasmota normally only need the meter type and meter
+device. Shelly 3EM and custom meters require the matching phase or
+import/export entities. Use 800 W for SunEnergyXT 500 and 2400 W for
 SunEnergyXT 500 Pro unless a stricter local limit is required.
 
 ## Local Checks

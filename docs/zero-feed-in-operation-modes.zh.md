@@ -37,7 +37,7 @@
 
 ## 2. 功率方向定义
 
-蓝图内部统一使用下面的方向。电表插件的原始方向可以不同，蓝图会按电表预设和符号设置转换。
+蓝图内部统一使用下面的方向。电表插件的原始方向可以不同，蓝图会按电表类型和符号设置转换。
 
 | 数据 | 正数含义 | 负数含义 |
 | --- | --- | --- |
@@ -53,6 +53,7 @@
 
 | 配置项 | 说明 |
 | --- | --- |
+| `Meter type / power formula` | 选择电表类型或自定义功率计算公式 |
 | `External meter device` | 选择外部电表设备 |
 | `SunEnergyXT device` | 选择被蓝图控制的一体机 |
 | `System Min Discharge SOC` | 电池放电下限 |
@@ -337,7 +338,7 @@ PV 输入会影响蓝图的输出计算，但蓝图不会直接控制 PV。
 
 Shelly 三相求和模式下，只要任一相功率实体在 `Maximum meter age` 内更新，蓝图就会继续运行。没有变化的相位会沿用当前 state。这是为了兼容部分电表在某一相长期为 `0 W` 时不刷新该相实体的情况。
 
-如果电表设备页只有总功率实体，自动绑定通常会选择总功率。若要使用三相求和，需要在高级设置里手动指定 L1/L2/L3 实体。
+如果是 Shelly Pro 3EM、EcoTracker 或 BitShake / Tasmota，通常只需要选择电表类型和电表设备。如果是普通 Shelly 3EM，需要选择 `Shelly 3EM L1 + L2 + L3 phase sum`，并在 `Shelly 3EM and custom meter entities` 中填写 L1/L2/L3 实体。自定义电表需要选择对应 `Custom formula`，并填写公式所需实体。
 
 ## 17. 数据异常和超时保护
 
@@ -357,7 +358,7 @@ Shelly 三相求和模式下，只要任一相功率实体在 `Maximum meter age
 | 自动化是否启用 | HA 自动化开关是否打开 |
 | 实体是否可用 | 是否存在 `unknown` / `unavailable` |
 | 数据是否刷新 | `last_updated` 是否长期不变 |
-| 电表预设是否正确 | 是否选错总功率、三相或 import/export |
+| 电表类型是否正确 | 是否选错设备型、三相求和或 import/export 公式 |
 | HA 日志 | 是否有插件写入超时 |
 
 ## 18. 写入节奏和防振荡
