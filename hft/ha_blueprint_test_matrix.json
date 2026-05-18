@@ -1,0 +1,415 @@
+{
+  "schema_version": "hft-ha-blueprint-test-matrix-v1",
+  "task_type": "HA_BLUEPRINT_AUTOMATION",
+  "bench_type": "HA 蓝图自动化实验位",
+  "source_refs": [
+    "blueprints/automation/sunenergyxt/zero_feed_in_external_meter.yaml",
+    "blueprints/automation/sunenergyxt/zero_feed_in_flow.md",
+    "docs/zero-feed-in-blueprint-setup.zh.md",
+    "tools/zero-feed-in-simulator.html",
+    "tools/zero-feed-in-selftest.cjs"
+  ],
+  "case_seeds": [
+    {
+      "case_id": "HA-BP-001",
+      "title": "Blueprint metadata and import source validation",
+      "priority": "P0",
+      "capability": "Home Assistant blueprint import validation",
+      "journey_stage": "HA 蓝图导入",
+      "user_story": "作为 HA 蓝图验证者，我需要确认蓝图 metadata、domain、min_version、source_url 和 input 分组可被 Home Assistant 正确识别。",
+      "source_refs": [
+        "blueprints/automation/sunenergyxt/zero_feed_in_external_meter.yaml"
+      ],
+      "preconditions": [
+        "平台能读取 blueprint YAML。",
+        "Home Assistant 最低版本约束按 YAML 声明校验。"
+      ],
+      "steps": [
+        "解析 YAML 顶层 blueprint、domain、homeassistant.min_version 和 source_url。",
+        "校验 domain 为 automation。",
+        "校验 source_url 指向本仓库 main 分支蓝图路径。",
+        "校验 input 分组至少包含 required_devices、basic_targets、advanced_entity_overrides、advanced_meter_settings、advanced_control_settings。"
+      ],
+      "assertions": [
+        "YAML 可解析且不会出现重复 key 或空 input 分组。",
+        "Home Assistant import 所需 metadata 完整。",
+        "source_url 与仓库路径一致。"
+      ],
+      "evidence": [
+        "ha_blueprint_yaml_static_result",
+        "schema_validation_result"
+      ],
+      "recovery": [
+        "若 YAML 解析失败，阻塞生成运行包并回写具体行号。"
+      ]
+    },
+    {
+      "case_id": "HA-BP-002",
+      "title": "Required devices selector and auto-binding contract",
+      "priority": "P0",
+      "capability": "SunEnergyXT device and external meter device selector validation",
+      "journey_stage": "HA 蓝图配置",
+      "user_story": "作为 HA 用户，我只选择外部电表设备和 SunEnergyXT 设备，蓝图应能自动绑定核心实体。",
+      "source_refs": [
+        "blueprints/automation/sunenergyxt/zero_feed_in_external_meter.yaml",
+        "docs/zero-feed-in-blueprint-setup.zh.md"
+      ],
+      "preconditions": [
+        "已准备 HA entity catalog 或人工导出的实体清单。"
+      ],
+      "steps": [
+        "校验 external_meter_device selector 接受 sensor entity 所属设备。",
+        "校验 aio_device selector 使用 integration=sunenergyxt 过滤。",
+        "校验蓝图变量中存在自动查找 grid-port setpoint、max inverter setpoint、load-port power、grid-port power、PV total input、battery level、SOC limit entities 的逻辑。"
+      ],
+      "assertions": [
+        "required device selector 不要求用户手动输入全部实体。",
+        "SunEnergyXT 设备下关键 number/sensor 实体有自动绑定或高级覆盖路径。",
+        "缺实体时输出 blocker，不允许生成可执行运行包。"
+      ],
+      "evidence": [
+        "ha_entity_mapping_snapshot",
+        "ha_blueprint_yaml_static_result"
+      ],
+      "recovery": [
+        "恢复 entity catalog 到只读快照状态。"
+      ]
+    },
+    {
+      "case_id": "HA-BP-003",
+      "title": "Meter preset auto-detection coverage",
+      "priority": "P0",
+      "capability": "External meter preset auto-detection",
+      "journey_stage": "外部电表接入",
+      "user_story": "作为使用不同电表插件的用户，我需要 Shelly、BitShake/Tasmota、EcoTracker 和自定义功率形态都能进入明确预设或覆盖路径。",
+      "source_refs": [
+        "blueprints/automation/sunenergyxt/zero_feed_in_external_meter.yaml",
+        "docs/zero-feed-in-blueprint-setup.zh.md"
+      ],
+      "preconditions": [
+        "准备包含 Shelly、BitShake/Tasmota、EcoTracker、自定义 signed total power、三相求和、import/export pair 的实体样例。"
+      ],
+      "steps": [
+        "枚举 YAML 中 External meter preset override 的全部 options。",
+        "对照 setup 文档中的电表形态表。",
+        "校验每种预设至少有一个实体绑定入口和符号方向处理入口。"
+      ],
+      "assertions": [
+        "文档列出的电表形态在 YAML options 中均可找到。",
+        "import/export pair 按 export-import 计算，不依赖符号方向选项。",
+        "EcoTracker raw attribute 有 attribute name 配置项。"
+      ],
+      "evidence": [
+        "ha_blueprint_yaml_static_result",
+        "ha_entity_mapping_snapshot"
+      ],
+      "recovery": [
+        "清理本次实体样例快照。"
+      ]
+    },
+    {
+      "case_id": "HA-BP-004",
+      "title": "Meter sign convention and unit multiplier validation",
+      "priority": "P0",
+      "capability": "Meter power direction and W/kW conversion",
+      "journey_stage": "功率真相校验",
+      "user_story": "作为测试人员，我需要确认蓝图内部统一正数为馈电、负数为购电，并能处理 kW 到 W 的转换。",
+      "source_refs": [
+        "blueprints/automation/sunenergyxt/zero_feed_in_external_meter.yaml",
+        "docs/zero-feed-in-blueprint-setup.zh.md"
+      ],
+      "preconditions": [
+        "准备 signed total power、import positive、export positive、kW source 的模拟输入。"
+      ],
+      "steps": [
+        "校验 meter_sign_mode 默认 auto_from_preset。",
+        "校验 explicit export_positive 与 import_positive 选项。",
+        "校验 meter_power_multiplier 能将 kW 转为 W。",
+        "用模拟输入比对内部 meterPower 方向。"
+      ],
+      "assertions": [
+        "内部方向统一为正数馈电、负数购电。",
+        "单位换算后控制输入为 W。",
+        "符号方向不确定时必须保留高级覆盖或 blocker。"
+      ],
+      "evidence": [
+        "simulator_selftest_result",
+        "ha_blueprint_yaml_static_result"
+      ],
+      "recovery": [
+        "恢复 meter preset 与 multiplier 为默认值。"
+      ]
+    },
+    {
+      "case_id": "HA-BP-005",
+      "title": "SOC limit and hold helper behavior",
+      "priority": "P0",
+      "capability": "System Min Discharge SOC / System Max Charge SOC control boundary",
+      "journey_stage": "SOC 边界",
+      "user_story": "作为用户，我配置 SOC 下限和上限后，蓝图应阻止低 SOC 放电和满电继续充电，并在 helper 可选时保持状态。",
+      "source_refs": [
+        "blueprints/automation/sunenergyxt/zero_feed_in_external_meter.yaml",
+        "docs/zero-feed-in-blueprint-setup.zh.md",
+        "tools/zero-feed-in-selftest.cjs"
+      ],
+      "preconditions": [
+        "准备 SOC 低于下限、处于区间、达到上限、回差退出四类输入。"
+      ],
+      "steps": [
+        "校验 min_discharge_soc 和 max_charge_soc selector 范围。",
+        "校验 full_charge_hold_helper 与 low_discharge_hold_helper 为可选。",
+        "执行 selftest SOC 边界矩阵。",
+        "检查低 SOC 禁放、满电禁充和 5% 回差逻辑。"
+      ],
+      "assertions": [
+        "SOC 达到下限后不继续放电。",
+        "SOC 达到上限后不继续充电。",
+        "helper 未配置时按当前 SOC 派生状态，helper 配置时可跨重启保持。"
+      ],
+      "evidence": [
+        "simulator_selftest_result",
+        "ha_entity_state_snapshot",
+        "recovery_log"
+      ],
+      "recovery": [
+        "恢复 helper 到测试开始前状态。"
+      ]
+    },
+    {
+      "case_id": "HA-BP-006",
+      "title": "Full-battery follow-load versus follow-PV behavior",
+      "priority": "P0",
+      "capability": "Full-battery behavior control",
+      "journey_stage": "满电后策略",
+      "user_story": "作为用户，我选择满电后跟随负载或跟随 PV，应看到不同的控制目标和旁路表现。",
+      "source_refs": [
+        "blueprints/automation/sunenergyxt/zero_feed_in_external_meter.yaml",
+        "tools/zero-feed-in-simulator.html",
+        "tools/zero-feed-in-selftest.cjs"
+      ],
+      "preconditions": [
+        "SOC 达到上限。",
+        "准备 follow_load 和 follow_pv 两组输入。"
+      ],
+      "steps": [
+        "校验 full_battery_mode options 包含 follow_load 与 follow_pv。",
+        "运行 selftest 中满电 follow PV / follow load 场景。",
+        "检查 GS/IS 目标与 bypass 状态。"
+      ],
+      "assertions": [
+        "follow_load 以零馈电为优先。",
+        "follow_pv 在满足条件时可进入 PV bypass，GS 固定为 0。",
+        "bypass 不足时进入混合态，不错误限制 PV 或错误拉网。"
+      ],
+      "evidence": [
+        "simulator_selftest_result",
+        "ha_blueprint_yaml_static_result"
+      ],
+      "recovery": [
+        "恢复 full_battery_mode 到任务前配置。"
+      ]
+    },
+    {
+      "case_id": "HA-BP-007",
+      "title": "Load-port microinverter backfeed protection",
+      "priority": "P0",
+      "capability": "Load-port backfeed and grid-port cap protection",
+      "journey_stage": "多设备协同",
+      "user_story": "作为接入负载口微逆的用户，我需要负载口回灌时蓝图不会让 GS 在正负方向震荡，也不会突破设备上限。",
+      "source_refs": [
+        "tools/zero-feed-in-selftest.cjs",
+        "tools/zero-feed-in-simulator.html",
+        "blueprints/automation/sunenergyxt/zero_feed_in_external_meter.yaml"
+      ],
+      "preconditions": [
+        "准备 load port power 为负值的微逆回灌输入。",
+        "准备 500 与 500 Pro 两类输出上限。"
+      ],
+      "steps": [
+        "执行 selftest 中 microinverter backfeed 与 500 overload 场景。",
+        "检查 GS 目标不在正负方向震荡。",
+        "检查超过 500 上限时输出被限制或进入保护路径。"
+      ],
+      "assertions": [
+        "负载口回灌可优先被电池吸收，不错误从电网取电。",
+        "500 型号不会按 500 Pro 上限执行。",
+        "GS 不在修正后跨正负方向振荡。"
+      ],
+      "evidence": [
+        "simulator_selftest_result",
+        "ha_automation_trace"
+      ],
+      "recovery": [
+        "恢复设备型号与负载口输入模拟值。"
+      ]
+    },
+    {
+      "case_id": "HA-BP-008",
+      "title": "Control write cadence and feedback settle gate",
+      "priority": "P1",
+      "capability": "Write interval, resolution, and feedback settle protection",
+      "journey_stage": "控制稳定性",
+      "user_story": "作为验证人员，我需要确认蓝图不会因为高频写入、反馈未稳定或分辨率过小导致控制抖动。",
+      "source_refs": [
+        "blueprints/automation/sunenergyxt/zero_feed_in_external_meter.yaml",
+        "docs/zero-feed-in-blueprint-setup.zh.md"
+      ],
+      "preconditions": [
+        "准备 small/medium/fast error 三类功率误差输入。",
+        "准备 gs_feedback_settle_s 配置。"
+      ],
+      "steps": [
+        "校验 slow_interval_s、medium_interval_s、fast_interval_s 和 gs_feedback_settle_s selector。",
+        "检查 should_write_is 与 should_write_gs 的间隔门槛。",
+        "检查 write resolution 对微小变化的抑制。"
+      ],
+      "assertions": [
+        "写入间隔不短于反馈 settle 时间。",
+        "小变化不触发重复写入。",
+        "大误差可进入快速调节但仍受单次步长和反馈门控约束。"
+      ],
+      "evidence": [
+        "ha_blueprint_yaml_static_result",
+        "ha_automation_trace"
+      ],
+      "recovery": [
+        "恢复写入间隔和 resolution 默认值。"
+      ]
+    },
+    {
+      "case_id": "HA-BP-009",
+      "title": "Stale data and unavailable entity safety",
+      "priority": "P0",
+      "capability": "Stale data guard and no-write safety",
+      "journey_stage": "异常保护",
+      "user_story": "作为用户，当外部电表或一体机关键实体超时或不可用时，蓝图应停止本轮写入，避免错误控制。",
+      "source_refs": [
+        "blueprints/automation/sunenergyxt/zero_feed_in_external_meter.yaml",
+        "docs/zero-feed-in-blueprint-setup.zh.md"
+      ],
+      "preconditions": [
+        "准备 unavailable、unknown、超时未更新和三相 0W 空闲相位输入。"
+      ],
+      "steps": [
+        "校验 stale timeout 配置。",
+        "模拟关键实体 unavailable / unknown。",
+        "模拟 Shelly Pro 3EM 某相位 0W 不刷新。",
+        "检查本轮是否停止写入或沿用允许的相位状态。"
+      ],
+      "assertions": [
+        "关键数据无效时不调用 number.set_value。",
+        "三相空闲相位按文档规则处理，不因 0W 相位不刷新误判整体 stale。",
+        "报告明确给出缺失实体或 stale 数据来源。"
+      ],
+      "evidence": [
+        "ha_automation_trace",
+        "ha_entity_state_snapshot",
+        "recovery_log"
+      ],
+      "recovery": [
+        "恢复实体样例为 available 状态。"
+      ]
+    },
+    {
+      "case_id": "HA-BP-010",
+      "title": "Number service write target validation",
+      "priority": "P0",
+      "capability": "number.set_value write target safety",
+      "journey_stage": "执行安全",
+      "user_story": "作为测试负责人，我需要确认蓝图只写入 System Grid Port Power Setpoint 和 System Max Inverter Power Setpoint，不修改运行模式或放电模式。",
+      "source_refs": [
+        "blueprints/automation/sunenergyxt/zero_feed_in_external_meter.yaml",
+        "blueprints/automation/sunenergyxt/zero_feed_in_flow.md"
+      ],
+      "preconditions": [
+        "平台能静态扫描 YAML services。"
+      ],
+      "steps": [
+        "扫描所有 number.set_value action。",
+        "校验写入目标仅限 GS number 与 IS number。",
+        "扫描是否存在 operation-mode、discharge-mode 或 switch/select 模式写入。"
+      ],
+      "assertions": [
+        "蓝图不修改 device operation-mode。",
+        "蓝图不修改 discharge-mode。",
+        "所有写入动作都有 should_write 门槛和钳制逻辑。"
+      ],
+      "evidence": [
+        "ha_blueprint_yaml_static_result",
+        "ha_automation_trace"
+      ],
+      "recovery": [
+        "如发现越权写入，阻塞真实 HA runtime 测试。"
+      ]
+    },
+    {
+      "case_id": "HA-BP-011",
+      "title": "Simulator and blueprint flow consistency",
+      "priority": "P1",
+      "capability": "Simulator / flow / YAML control path consistency",
+      "journey_stage": "一致性验证",
+      "user_story": "作为产品验收人，我需要确认说明文档、流程图、模拟器和 YAML 控制路径表达一致。",
+      "source_refs": [
+        "blueprints/automation/sunenergyxt/zero_feed_in_flow.md",
+        "tools/zero-feed-in-simulator.html",
+        "tools/zero-feed-in-selftest.cjs",
+        "blueprints/automation/sunenergyxt/zero_feed_in_external_meter.yaml"
+      ],
+      "preconditions": [
+        "平台能运行或读取 selftest 输出。",
+        "平台能读取 flow markdown。"
+      ],
+      "steps": [
+        "运行 zero-feed-in-selftest.cjs。",
+        "抽取 flow 文档中的关键节点。",
+        "对照 YAML 中的 target、bypass、SOC、write gate 变量。"
+      ],
+      "assertions": [
+        "selftest 全量矩阵通过或输出具体失败项。",
+        "flow 文档中的控制节点在 YAML 和 simulator 中有对应实现。",
+        "不出现文档承诺但 YAML 缺实现的路径。"
+      ],
+      "evidence": [
+        "simulator_selftest_result",
+        "ha_blueprint_yaml_static_result"
+      ],
+      "recovery": [
+        "清理本地 selftest 临时输出。"
+      ]
+    },
+    {
+      "case_id": "HA-BP-012",
+      "title": "Automation disable and next-run recovery",
+      "priority": "P0",
+      "capability": "Safe recovery after HA blueprint test",
+      "journey_stage": "维护恢复",
+      "user_story": "作为测试同事，我需要在蓝图验证后把 HA 自动化、helper、trace 和实体快照恢复到下一轮可测状态。",
+      "source_refs": [
+        "docs/zero-feed-in-blueprint-setup.zh.md",
+        "blueprints/automation/sunenergyxt/zero_feed_in_external_meter.yaml"
+      ],
+      "preconditions": [
+        "测试前已记录 automation enabled 状态、helper 状态和关键 number entity 值。"
+      ],
+      "steps": [
+        "执行测试后恢复或禁用测试自动化。",
+        "恢复 full charge hold / low SOC hold helper。",
+        "恢复 GS/IS number entity 到测试前快照或人工确认安全值。",
+        "导出并归档 HA trace 与 entity snapshot。"
+      ],
+      "assertions": [
+        "下一轮测试可以重新导入或重跑蓝图。",
+        "测试结束后没有遗留高风险 number.set_value 写入状态。",
+        "恢复日志可回指到本次 run_id。"
+      ],
+      "evidence": [
+        "recovery_log",
+        "ha_entity_state_snapshot",
+        "ha_automation_trace"
+      ],
+      "recovery": [
+        "如恢复失败，标记任务 blocked，禁止继续真实 HA runtime 测试。"
+      ]
+    }
+  ]
+}

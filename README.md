@@ -20,6 +20,10 @@ Power`, and `System Battery Level`.
   Standalone browser simulator for the zero feed-in strategy.
 - `tools/zero-feed-in-selftest.cjs`:
   Node.js self-test harness for simulator/controller consistency checks.
+- `hft/`:
+  7x24 hardware/firmware test-platform adapter files. These describe how the
+  platform should generate HA blueprint automation cases, flows, bench setup
+  notes, and reports from this repository.
 
 ## Home Assistant Import URL
 
@@ -49,3 +53,19 @@ node tools/zero-feed-in-selftest.cjs
 ```
 
 The current package passed the full matrix and closed-loop checks before upload.
+
+## 7x24 Test Platform Adapter
+
+For the HFT platform, create a task with:
+
+```text
+task_type: HA_BLUEPRINT_AUTOMATION
+bench_type: HA 蓝图自动化实验位
+source_link: https://github.com/yanqr213/500-blueprint
+```
+
+The platform can use `hft/ha_blueprint_test_matrix.json` as case seeds and
+`hft/ha_blueprint_automation_flow.yaml` as the first reviewable flow draft.
+MVP execution is limited to static blueprint checks, simulator self-test, entity
+mapping validation, and imported HA trace review. Real Home Assistant runtime
+control remains gated by the platform `local_api` review path.

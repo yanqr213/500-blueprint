@@ -1,0 +1,95 @@
+schema_version: automation-flow-v1
+task_type: HA_BLUEPRINT_AUTOMATION
+task_key: "{{ task_key }}"
+flows:
+  - flow_id: "FLOW-HA-BP-STATIC"
+    execution_channel: "ha_blueprint_local_runner"
+    purpose: "Validate blueprint YAML, metadata, selectors, write targets, and source references."
+    variables:
+      - "blueprint_yaml_ref=blueprints/automation/sunenergyxt/zero_feed_in_external_meter.yaml"
+      - "setup_doc_ref=docs/zero-feed-in-blueprint-setup.zh.md"
+    steps:
+      - name: "prepare_context"
+        action: "load_task_variables"
+      - name: "static_check"
+        action: "run_ha_blueprint_static_check"
+      - name: "assert_static_contract"
+        action: "evaluate_assertions"
+    evidence_collection:
+      - "ha_blueprint_yaml_static_result"
+      - "schema_validation_result"
+    recovery_steps:
+      - "No runtime mutation; clear local parser temp files."
+
+  - flow_id: "FLOW-HA-BP-SELFTEST"
+    execution_channel: "ha_blueprint_local_runner"
+    purpose: "Run simulator/controller self-test matrix before any real HA runtime execution."
+    variables:
+      - "simulator_ref=tools/zero-feed-in-simulator.html"
+      - "selftest_script_ref=tools/zero-feed-in-selftest.cjs"
+    steps:
+      - name: "prepare_context"
+        action: "load_task_variables"
+      - name: "run_selftest"
+        action: "run_ha_simulator_selftest"
+      - name: "assert_selftest_result"
+        action: "evaluate_assertions"
+    evidence_collection:
+      - "simulator_selftest_result"
+      - "closed_loop_matrix_result"
+    recovery_steps:
+      - "Remove self-test temp output."
+
+  - flow_id: "FLOW-HA-BP-ENTITY-MAPPING"
+    execution_channel: "ha_blueprint_local_runner"
+    purpose: "Validate that the selected HA entity catalog can satisfy blueprint inputs and auto-binding expectations."
+    variables:
+      - "ha_entity_catalog_ref={{ ha_entity_catalog_ref }}"
+      - "blueprint_yaml_ref=blueprints/automation/sunenergyxt/zero_feed_in_external_meter.yaml"
+    steps:
+      - name: "prepare_context"
+        action: "load_task_variables"
+      - name: "validate_entities"
+        action: "validate_ha_entity_mapping"
+      - name: "assert_mapping"
+        action: "evaluate_assertions"
+    evidence_collection:
+      - "ha_entity_mapping_snapshot"
+      - "ha_entity_state_snapshot"
+    recovery_steps:
+      - "Keep entity catalog read-only; no HA runtime mutation."
+
+  - flow_id: "FLOW-HA-BP-TRACE-REVIEW"
+    execution_channel: "ha_blueprint_local_runner"
+    purpose: "Review manually exported HA automation trace and entity state snapshots."
+    variables:
+      - "ha_trace_export_ref={{ ha_trace_export_ref }}"
+      - "ha_entity_state_snapshot_ref={{ ha_entity_state_snapshot_ref }}"
+    steps:
+      - name: "prepare_context"
+        action: "load_task_variables"
+      - name: "collect_trace"
+        action: "collect_ha_trace_placeholder"
+      - name: "assert_trace"
+        action: "evaluate_assertions"
+      - name: "recover"
+        action: "run_recovery_steps"
+    evidence_collection:
+      - "ha_automation_trace"
+      - "ha_entity_state_snapshot"
+      - "recovery_log"
+    recovery_steps:
+      - "Disable test automation if enabled."
+      - "Restore helper and number entities to pre-test snapshot."
+
+reserved_runtime_gate:
+  local_api:
+    default_enabled: false
+    required_before_real_runtime:
+      - "Home Assistant base URL SecretRef"
+      - "HA long-lived token SecretRef"
+      - "read/write service allowlist"
+      - "bench safety plan"
+      - "entity pre/post snapshot"
+      - "recovery procedure"
+      - "architect review"
