@@ -16,6 +16,10 @@ Power`, and `System Battery Level`.
   Mermaid flowchart for the control path.
 - `docs/zero-feed-in-blueprint-setup.zh.md`:
   Chinese setup guide for Home Assistant users.
+- `docs/zero-feed-in-operation-modes.zh.md`:
+  Detailed Chinese guide for blueprint runtime operating modes.
+- `docs/zero-feed-in-blueprint-requirements.zh.md`:
+  Chinese requirements document derived from the current blueprint behavior.
 - `tools/zero-feed-in-simulator.html`:
   Standalone browser simulator for the zero feed-in strategy.
 - `tools/zero-feed-in-selftest.cjs`:
