@@ -123,7 +123,7 @@ blueprint:
           selector:
             select:
               options:
-                - label: Pro 3EM
+                - label: Shelly Pro 3EM
                   value: shelly_total_power
                 - label: EcoTracker
                   value: ecotracker_power
@@ -135,16 +135,16 @@ blueprint:
                   value: custom
 
     meter_pro3em_setup:
-      name: Pro-3EM-Zähler
+      name: Shelly Pro 3EM Zähler
       icon: mdi:meter-electric
       collapsed: true
       description: >
-        Dieses Formular nur ausfüllen, wenn als Zählertyp Pro 3EM ausgewählt ist.
+        Dieses Formular nur ausfüllen, wenn als Zählertyp Shelly Pro 3EM ausgewählt ist.
       input:
         pro3em_meter_device:
-          name: Pro-3EM-Gerät
+          name: Shelly Pro 3EM Gerät
           description: >
-            Wählen Sie das Pro-3EM-Zählergerät.
+            Wählen Sie das Shelly Pro 3EM Zählergerät.
           default: ""
           selector:
             device:
