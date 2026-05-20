@@ -541,23 +541,23 @@ blueprint:
 
         slow_interval_s:
           name: Slow write interval
-          default: 15
+          default: 7
           selector:
             number:
-              min: 3
+              min: 1
               max: 120
-              step: 1
+              step: 0.5
               unit_of_measurement: s
               mode: box
 
         medium_interval_s:
           name: Medium write interval
-          default: 5
+          default: 2.5
           selector:
             number:
-              min: 1
+              min: 0.5
               max: 60
-              step: 1
+              step: 0.5
               unit_of_measurement: s
               mode: box
 
@@ -654,7 +654,7 @@ blueprint:
           description: >
             Off writes no diagnostic logs. Events logs SOC hold helper
             transitions. Write adds setpoint write logs. Decision adds periodic
-            control decision logs. Debug currently follows the Decision level.
+            control decision logs. Debug writes decision logs every 5 seconds.
           default: off
           selector:
             select:
@@ -673,9 +673,9 @@ blueprint:
         diagnostic_log_interval_s:
           name: Diagnostic decision log interval
           description: >
-            Minimum interval for periodic decision logs. This only applies when
-            Diagnostic log level is Decisions or Debug. Event and write logs are
-            emitted only when the related action actually happens.
+            Minimum interval for periodic Decisions logs. Debug decision logs
+            use a fixed 5 s interval. Event and write logs are emitted only when
+            the related action actually happens.
           default: 60
           selector:
             number:
@@ -1759,9 +1759,10 @@ action:
            and (control_meter_sample_after_change | bool(false))
            and (next_gs_w | float(0)) != (current_gs_w | float(0)) }}
       diagnostic_decision_log_due: >-
-        {% set interval = [diagnostic_log_interval_s | float(60), 10] | max %}
+        {% set level = diagnostic_log_level | string | trim %}
+        {% set interval = 5 if level == 'debug' else ([diagnostic_log_interval_s | float(60), 10] | max) %}
         {% set now_ts = as_timestamp(now()) | int(0) %}
-        {{ (diagnostic_log_level | string | trim) in ['decision', 'debug']
+        {{ level in ['decision', 'debug']
            and (now_ts % (interval | int(60))) == 0 }}
 
   - choose:

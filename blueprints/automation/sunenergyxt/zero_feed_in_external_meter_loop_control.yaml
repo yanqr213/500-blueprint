@@ -538,23 +538,23 @@ blueprint:
 
         slow_interval_s:
           name: Slow write interval
-          default: 15
+          default: 7
           selector:
             number:
-              min: 3
+              min: 1
               max: 120
-              step: 1
+              step: 0.5
               unit_of_measurement: s
               mode: box
 
         medium_interval_s:
           name: Medium write interval
-          default: 5
+          default: 2.5
           selector:
             number:
-              min: 1
+              min: 0.5
               max: 60
-              step: 1
+              step: 0.5
               unit_of_measurement: s
               mode: box
 
@@ -702,8 +702,9 @@ blueprint:
         diagnostic_log_min_interval_s:
           name: Diagnostic log minimum interval
           description: >
-            Minimum interval for repeated validation, decision, and debug logs.
-            Setpoint writes and SOC hold transitions are logged when they happen.
+            Minimum interval for repeated validation and Decisions logs.
+            Debug decision logs use a fixed 5 s interval. Setpoint writes and
+            SOC hold transitions are logged when they happen.
           default: 60
           selector:
             number:
@@ -1855,8 +1856,10 @@ action:
                     - conditions:
                         - condition: template
                           value_template: >-
-                            {{ (diagnostic_log_level | string | trim) in ['decision', 'debug']
-                               and (as_timestamp(now()) - (last_diagnostic_log_ts | float(0))) >= (diagnostic_log_min_interval_s | float(60)) }}
+                            {% set level = diagnostic_log_level | string | trim %}
+                            {% set interval = 5 if level == 'debug' else (diagnostic_log_min_interval_s | float(60)) %}
+                            {{ level in ['decision', 'debug']
+                               and (as_timestamp(now()) - (last_diagnostic_log_ts | float(0))) >= interval }}
                       sequence:
                         - service: system_log.write
                           data:
