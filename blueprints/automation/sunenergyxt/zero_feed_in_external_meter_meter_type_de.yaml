@@ -549,23 +549,23 @@ blueprint:
 
         slow_interval_s:
           name: Langsames Schreibintervall
-          default: 15
+          default: 7
           selector:
             number:
-              min: 3
+              min: 1
               max: 120
-              step: 1
+              step: 0.5
               unit_of_measurement: s
               mode: box
 
         medium_interval_s:
           name: Mittleres Schreibintervall
-          default: 5
+          default: 2.5
           selector:
             number:
-              min: 1
+              min: 0.5
               max: 60
-              step: 1
+              step: 0.5
               unit_of_measurement: s
               mode: box
 
@@ -655,6 +655,44 @@ blueprint:
               max: 100
               step: 1
               unit_of_measurement: W
+              mode: box
+
+        diagnostic_log_level:
+          name: Diagnose-Log-Stufe
+          description: >
+            Aus schreibt keine Diagnose-Logs. Ereignisse protokolliert
+            SOC-Haltewechsel. Schreibvorgänge ergänzt Setpoint-Schreibvorgänge.
+            Entscheidungen ergänzt periodische Regelentscheidungen. Debug
+            schreibt Entscheidungs-Logs alle 5 Sekunden.
+          default: off
+          selector:
+            select:
+              options:
+                - label: Aus
+                  value: off
+                - label: Ereignisse
+                  value: events
+                - label: Schreibvorgänge
+                  value: write
+                - label: Entscheidungen
+                  value: decision
+                - label: Debug
+                  value: debug
+
+        diagnostic_log_interval_s:
+          name: Intervall für Entscheidungs-Logs
+          description: >
+            Mindestintervall für periodische Entscheidungs-Logs. Debug-
+            Entscheidungs-Logs verwenden ein festes Intervall von 5 s.
+            Ereignis- und Schreib-Logs werden nur ausgegeben, wenn die
+            jeweilige Aktion tatsächlich passiert.
+          default: 60
+          selector:
+            number:
+              min: 10
+              max: 3600
+              step: 10
+              unit_of_measurement: s
               mode: box
 
         full_charge_hold_helper:
@@ -758,6 +796,8 @@ variables:
   max_charge_soc: !input max_charge_soc
   ac_couple_max_charge_power_w: !input ac_couple_max_charge_power_w
   is_resolution_w: !input is_resolution_w
+  diagnostic_log_level: !input diagnostic_log_level
+  diagnostic_log_interval_s: !input diagnostic_log_interval_s
   gs_entity: >-
     {% set override = gs_entity_override | string %}
     {% if override | length > 0 %}
@@ -1728,6 +1768,12 @@ action:
            and (control_gp_sample_after_change | bool(false))
            and (control_meter_sample_after_change | bool(false))
            and (next_gs_w | float(0)) != (current_gs_w | float(0)) }}
+      diagnostic_decision_log_due: >-
+        {% set level = diagnostic_log_level | string | trim %}
+        {% set interval = 5 if level == 'debug' else ([diagnostic_log_interval_s | float(60), 10] | max) %}
+        {% set now_ts = as_timestamp(now()) | int(0) %}
+        {{ level in ['decision', 'debug']
+           and (now_ts % (interval | int(60))) == 0 }}
 
   - choose:
       - conditions:
@@ -1737,6 +1783,17 @@ action:
                  and full_hold_state | bool(false)
                  and not (current_full_hold_state | bool(false)) }}
         sequence:
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: >-
+                      {{ (diagnostic_log_level | string | trim) in ['events', 'write', 'decision', 'debug'] }}
+                sequence:
+                  - service: system_log.write
+                    data:
+                      level: info
+                      message: >-
+                        SunEnergyXT zero feed-in | event=full_hold_on | soc={{ soc_value | float(0) | round(1) }}% | lower={{ effective_min_discharge_soc | float(0) }}% | upper={{ effective_max_charge_soc | float(0) }}% | meter={{ normalized_grid_w | float(0) | round(0) }}W | gp={{ gp_power_w | float(0) | round(0) }}W | lp={{ load_power_w | float(0) | round(0) }}W | pv={{ pv_power_w | float(0) | round(0) }}W
           - service: input_boolean.turn_on
             target:
               entity_id: "{{ full_hold_entity | trim }}"
@@ -1747,6 +1804,17 @@ action:
                  and not (full_hold_state | bool(false))
                  and current_full_hold_state | bool(false) }}
         sequence:
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: >-
+                      {{ (diagnostic_log_level | string | trim) in ['events', 'write', 'decision', 'debug'] }}
+                sequence:
+                  - service: system_log.write
+                    data:
+                      level: info
+                      message: >-
+                        SunEnergyXT zero feed-in | event=full_hold_off | soc={{ soc_value | float(0) | round(1) }}% | lower={{ effective_min_discharge_soc | float(0) }}% | upper={{ effective_max_charge_soc | float(0) }}% | meter={{ normalized_grid_w | float(0) | round(0) }}W | gp={{ gp_power_w | float(0) | round(0) }}W | lp={{ load_power_w | float(0) | round(0) }}W | pv={{ pv_power_w | float(0) | round(0) }}W
           - service: input_boolean.turn_off
             target:
               entity_id: "{{ full_hold_entity | trim }}"
@@ -1759,6 +1827,17 @@ action:
                  and low_hold_state | bool(false)
                  and not (current_low_hold_state | bool(false)) }}
         sequence:
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: >-
+                      {{ (diagnostic_log_level | string | trim) in ['events', 'write', 'decision', 'debug'] }}
+                sequence:
+                  - service: system_log.write
+                    data:
+                      level: info
+                      message: >-
+                        SunEnergyXT zero feed-in | event=low_hold_on | soc={{ soc_value | float(0) | round(1) }}% | lower={{ effective_min_discharge_soc | float(0) }}% | upper={{ effective_max_charge_soc | float(0) }}% | meter={{ normalized_grid_w | float(0) | round(0) }}W | gp={{ gp_power_w | float(0) | round(0) }}W | lp={{ load_power_w | float(0) | round(0) }}W | pv={{ pv_power_w | float(0) | round(0) }}W
           - service: input_boolean.turn_on
             target:
               entity_id: "{{ low_hold_entity | trim }}"
@@ -1769,6 +1848,17 @@ action:
                  and not (low_hold_state | bool(false))
                  and current_low_hold_state | bool(false) }}
         sequence:
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: >-
+                      {{ (diagnostic_log_level | string | trim) in ['events', 'write', 'decision', 'debug'] }}
+                sequence:
+                  - service: system_log.write
+                    data:
+                      level: info
+                      message: >-
+                        SunEnergyXT zero feed-in | event=low_hold_off | soc={{ soc_value | float(0) | round(1) }}% | lower={{ effective_min_discharge_soc | float(0) }}% | upper={{ effective_max_charge_soc | float(0) }}% | meter={{ normalized_grid_w | float(0) | round(0) }}W | gp={{ gp_power_w | float(0) | round(0) }}W | lp={{ load_power_w | float(0) | round(0) }}W | pv={{ pv_power_w | float(0) | round(0) }}W
           - service: input_boolean.turn_off
             target:
               entity_id: "{{ low_hold_entity | trim }}"
@@ -1778,6 +1868,17 @@ action:
           - condition: template
             value_template: "{{ should_write_is }}"
         sequence:
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: >-
+                      {{ (diagnostic_log_level | string | trim) in ['write', 'decision', 'debug'] }}
+                sequence:
+                  - service: system_log.write
+                    data:
+                      level: info
+                      message: >-
+                        SunEnergyXT zero feed-in | event=write_is | old={{ current_is_w | float(0) | round(0) }}W | new={{ next_is_w | float(0) | round(0) }}W | target={{ target_is_w | float(0) | round(0) }}W | meter={{ normalized_grid_w | float(0) | round(0) }}W | gp={{ gp_power_w | float(0) | round(0) }}W | lp={{ load_power_w | float(0) | round(0) }}W | pv={{ pv_power_w | float(0) | round(0) }}W | soc={{ soc_value | float(0) | round(1) }}% | full_hold={{ full_hold_state | bool(false) }} | low_hold={{ low_hold_state | bool(false) }}
           - service: number.set_value
             continue_on_error: true
             target:
@@ -1790,8 +1891,30 @@ action:
           - condition: template
             value_template: "{{ should_write_gs }}"
         sequence:
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: >-
+                      {{ (diagnostic_log_level | string | trim) in ['write', 'decision', 'debug'] }}
+                sequence:
+                  - service: system_log.write
+                    data:
+                      level: info
+                      message: >-
+                        SunEnergyXT zero feed-in | event=write_gs | old={{ current_gs_w | float(0) | round(0) }}W | new={{ next_gs_w | float(0) | round(0) }}W | target={{ target_gs_w | float(0) | round(0) }}W | meter={{ normalized_grid_w | float(0) | round(0) }}W | gp={{ gp_power_w | float(0) | round(0) }}W | lp={{ load_power_w | float(0) | round(0) }}W | pv={{ pv_power_w | float(0) | round(0) }}W | soc={{ soc_value | float(0) | round(1) }}% | full_hold={{ full_hold_state | bool(false) }} | low_hold={{ low_hold_state | bool(false) }}
           - service: number.set_value
             target:
               entity_id: "{{ gs_entity | trim }}"
             data:
               value: "{{ next_gs_w }}"
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ diagnostic_decision_log_due | bool(false) }}"
+        sequence:
+          - service: system_log.write
+            data:
+              level: info
+              message: >-
+                SunEnergyXT zero feed-in | event=decision | meter={{ normalized_grid_w | float(0) | round(0) }}W | target_grid={{ target_grid_power_w | float(0) | round(0) }}W | gp={{ gp_power_w | float(0) | round(0) }}W | lp={{ load_power_w | float(0) | round(0) }}W | pv={{ pv_power_w | float(0) | round(0) }}W | soc={{ soc_value | float(0) | round(1) }}% | gs={{ current_gs_w | float(0) | round(0) }}W->{{ next_gs_w | float(0) | round(0) }}W | is={{ current_is_w | float(0) | round(0) }}W->{{ next_is_w | float(0) | round(0) }}W | write_gs={{ should_write_gs | bool(false) }} | write_is={{ should_write_is | bool(false) }} | full_hold={{ full_hold_state | bool(false) }} | low_hold={{ low_hold_state | bool(false) }} | bypass={{ bypass_only | bool(false) }}
