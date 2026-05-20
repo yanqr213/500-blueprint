@@ -668,16 +668,16 @@ blueprint:
           selector:
             select:
               options:
-                - label: Aus
-                  value: off
-                - label: Ereignisse
-                  value: events
-                - label: Schreibvorgänge
-                  value: write
-                - label: Entscheidungen
-                  value: decision
-                - label: Debug
-                  value: debug
+                - label: "Aus"
+                  value: "off"
+                - label: "Ereignisse"
+                  value: "events"
+                - label: "Schreibvorgänge"
+                  value: "write"
+                - label: "Entscheidungen"
+                  value: "decision"
+                - label: "Debug"
+                  value: "debug"
 
         diagnostic_log_interval_s:
           name: Intervall für Entscheidungs-Logs

@@ -688,16 +688,16 @@ blueprint:
           selector:
             select:
               options:
-                - label: Off
-                  value: off
-                - label: Events
-                  value: events
-                - label: Write events
-                  value: write
-                - label: Decisions
-                  value: decision
-                - label: Debug
-                  value: debug
+                - label: "Off"
+                  value: "off"
+                - label: "Events"
+                  value: "events"
+                - label: "Write events"
+                  value: "write"
+                - label: "Decisions"
+                  value: "decision"
+                - label: "Debug"
+                  value: "debug"
 
         diagnostic_log_min_interval_s:
           name: Diagnostic log minimum interval
