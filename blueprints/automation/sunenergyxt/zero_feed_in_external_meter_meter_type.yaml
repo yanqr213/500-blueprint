@@ -690,7 +690,8 @@ blueprint:
           description: >
             Optional. Leave blank unless you want the automation to remember
             full-charge hold state across restarts. Without this helper, the
-            automation derives full-charge hold directly from current SOC.
+            automation derives full-charge hold from current SOC, with a 1%
+            full-battery bypass memory band for Follow PV after full.
           default: ""
           selector:
             entity:
