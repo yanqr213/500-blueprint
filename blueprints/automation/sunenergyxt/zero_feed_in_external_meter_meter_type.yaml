@@ -1482,6 +1482,21 @@ action:
         {{ has_low_hold_helper | bool(false)
            and is_state(low_hold_entity | trim, 'on') }}
       state_mismatch_threshold_w: "{{ [small_error_w | float(30), 30] | max }}"
+      full_hold_memory_band_percent: 1
+      full_hold_bypass_command_active: >-
+        {% set gs_tolerance = [gs_resolution_w | float(1), 5] | max %}
+        {% set is_tolerance = [is_resolution_w | float(10), 20] | max %}
+        {% set bypass_is_target = [is_entity_max_w | float(inverter_rated_w | float(2400)), inverter_rated_w | float(2400)] | min %}
+        {{ full_battery_mode == 'follow_pv'
+           and has_is | bool(false)
+           and ((current_gs_w | float(0)) | abs) <= (gs_tolerance | float(5))
+           and (current_is_w | float(0)) >= ((bypass_is_target | float(2400)) - (is_tolerance | float(20))) }}
+      full_hold_bypass_memory_active: >-
+        {% set soc = soc_value | float(50) %}
+        {% set upper = effective_max_charge_soc | float(100) %}
+        {{ full_hold_bypass_command_active | bool(false)
+           and soc < upper
+           and soc >= (upper - (full_hold_memory_band_percent | float(1))) }}
       full_hold_state: >-
         {% set soc = soc_value | float(50) %}
         {% set upper = effective_max_charge_soc | float(100) %}
@@ -1495,7 +1510,7 @@ action:
             {{ current_full_hold_state | bool(false) }}
           {% endif %}
         {% else %}
-          {{ soc >= upper }}
+          {{ soc >= upper or full_hold_bypass_memory_active | bool(false) }}
         {% endif %}
       low_hold_state_prelim: >-
         {% set soc = soc_value | float(50) %}
